@@ -79,6 +79,15 @@ app.onError((err, c) => {
 
 const port = Number(process.env.PORT || 3000);
 
+if (!process.env.DATABASE_URL) {
+  console.error(
+    '[boot] DATABASE_URL is not set.\n' +
+    '       Add it in the Render dashboard under Environment, then redeploy.\n' +
+    '       It looks like: postgresql://user:password@host/dbname?sslmode=require'
+  );
+  process.exit(1);
+}
+
 migrate()
   .then(() => {
     serve({ fetch: app.fetch, port }, (info) => {
@@ -86,7 +95,14 @@ migrate()
     });
   })
   .catch((e) => {
-    console.error('[boot] migrations failed:', e.message);
+    // Print everything useful — an empty message here is impossible to debug.
+    console.error('[boot] could not reach the database.');
+    console.error('       message:', e.message || '(none)');
+    if (e.code) console.error('       code:', e.code);
+    if (e.severity) console.error('       severity:', e.severity);
+    if (e.detail) console.error('       detail:', e.detail);
+    if (e.cause) console.error('       cause:', e.cause.message || e.cause);
+    console.error(e.stack);
     process.exit(1);
   });
 

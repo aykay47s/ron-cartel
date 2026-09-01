@@ -1,14 +1,16 @@
 services:
   - type: web
-    name: ron-cartel
-    runtime: static
-    staticPublishPath: .
-    pullRequestPreviewsEnabled: false
-    headers:
-      - path: /assets/fonts/*
-        name: Cache-Control
-        value: public, max-age=31536000, immutable
-    routes:
-      - type: rewrite
-        source: /shop
-        destination: /index.html
+    name: ron-cartel-app
+    runtime: node
+    plan: free
+    region: ohio
+    buildCommand: npm ci --omit=dev
+    startCommand: node src/index.js
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Set in the Render dashboard. Never committed.
+      - key: DATABASE_URL
+        sync: false

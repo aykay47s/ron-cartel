@@ -3,65 +3,100 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Payment matching — Ron Cartel Admin</title>
+<title>Admin — Ron Cartel</title>
 <meta name="robots" content="noindex">
 <link rel="stylesheet" href="assets/app.css">
 <style>
-  .adm{padding:28px 0 90px}
-  .adm-head{display:flex;align-items:flex-end;gap:20px;flex-wrap:wrap;margin-bottom:26px}
+  .adm{padding:26px 0 90px}
+  .adm-head{display:flex;align-items:flex-end;gap:20px;flex-wrap:wrap;margin-bottom:22px}
+  .pane{display:none} .pane.on{display:block}
 
-  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(178px,1fr));gap:14px;
-         margin-bottom:24px}
-  .stat{position:relative;overflow:hidden;padding:17px 18px;border-radius:var(--r-lg);
+  .cols{display:grid;grid-template-columns:380px minmax(0,1fr);gap:22px;align-items:start}
+  @media (max-width:900px){.cols{grid-template-columns:1fr}}
+
+  .drop{border:1px dashed rgba(255,255,255,.16);border-radius:var(--r);padding:18px;
+        text-align:center;cursor:pointer;transition:.2s var(--ease);position:relative}
+  .drop:hover{border-color:var(--volt-line);background:var(--volt-dim)}
+  .drop input{position:absolute;inset:0;opacity:0;cursor:pointer}
+  .drop .ic{color:var(--faint);margin:0 auto 8px}
+  .drop p{margin:0;font-size:12.5px;color:var(--muted)}
+  .preview{position:relative;border-radius:var(--r);overflow:hidden;border:1px solid var(--edge);
+           aspect-ratio:16/10;background:#0D0F13}
+  .preview img{width:100%;height:100%;object-fit:cover}
+  .preview button{position:absolute;top:8px;right:8px;width:30px;height:30px;border-radius:8px;
+    border:1px solid var(--edge);background:rgba(8,9,11,.8);color:var(--text);cursor:pointer;
+    display:grid;place-items:center}
+
+  .plist{display:grid;gap:12px}
+  .prow{display:flex;gap:14px;align-items:center;padding:13px;border-radius:var(--r);
+        border:1px solid var(--edge);background:var(--surface-2)}
+  .prow .th{width:78px;height:52px;border-radius:9px;flex:none;overflow:hidden;
+    background:radial-gradient(ellipse at 46% 34%,#1E232A,#0D0F13);display:grid;
+    place-items:center;padding:5px}
+  .prow .th img{width:100%;height:100%;object-fit:cover}
+  .prow .nm{font-weight:700;font-size:14px;letter-spacing:-.015em}
+  .prow .bl{font-size:12.5px;color:var(--muted);margin-top:2px}
+  .prow .pr{font-family:var(--mono);font-weight:700;font-size:14.5px;margin-left:auto;
+            white-space:nowrap;letter-spacing:-.03em}
+  .prow .acts{display:flex;gap:7px;flex:none}
+  .iconbtn{width:38px;height:38px;border-radius:9px;border:1px solid var(--edge);
+    background:var(--surface-3);color:var(--muted);cursor:pointer;display:grid;
+    place-items:center;transition:.16s}
+  .iconbtn:hover{color:var(--text);background:#252A31}
+  .iconbtn.danger:hover{color:var(--stop);border-color:rgba(248,113,113,.4)}
+  @media (max-width:600px){
+    .prow{flex-wrap:wrap}.prow .pr{margin-left:0;width:100%}
+  }
+
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(172px,1fr));gap:13px;
+         margin-bottom:22px}
+  .stat{position:relative;overflow:hidden;padding:16px 17px;border-radius:var(--r-lg);
     border:1px solid var(--edge);box-shadow:var(--shadow);
     background:linear-gradient(180deg,var(--surface),var(--ink-2))}
   .stat::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;opacity:.85}
   .stat.hold::before{background:linear-gradient(90deg,var(--hold),transparent)}
-  .stat.cash::before{background:var(--grad-flame)}
+  .stat.cash::before{background:var(--grad-volt)}
   .stat.good::before{background:linear-gradient(90deg,var(--go),transparent)}
   .stat.risk::before{background:linear-gradient(90deg,var(--stop),transparent)}
   .stat .k{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted);
            font-weight:600}
-  .stat.hold .k svg{color:var(--hold)} .stat.cash .k svg{color:var(--flame-2)}
+  .stat.hold .k svg{color:var(--hold)} .stat.cash .k svg{color:var(--volt-2)}
   .stat.good .k svg{color:var(--go)}   .stat.risk .k svg{color:var(--stop)}
-  .stat .v{font-family:var(--mono);font-size:29px;font-weight:700;letter-spacing:-.05em;
-    margin-top:8px;background:linear-gradient(180deg,#fff,#A9B3BE);
+  .stat .v{font-family:var(--mono);font-size:27px;font-weight:700;letter-spacing:-.05em;
+    margin-top:7px;background:linear-gradient(180deg,#fff,#A9B3BE);
     -webkit-background-clip:text;background-clip:text;color:transparent}
 
-  .bar{display:flex;gap:12px;margin-bottom:18px;flex-wrap:wrap;align-items:center}
-  .search{flex:1;min-width:250px;position:relative}
+  .bar{display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
+  .search{flex:1;min-width:240px;position:relative}
   .search svg{position:absolute;left:14px;top:50%;transform:translateY(-50%);
               color:var(--ghost);pointer-events:none}
   .search input{width:100%;min-height:48px;padding:13px 14px 13px 42px;border-radius:var(--r);
     border:1px solid var(--edge);background:var(--surface);color:var(--text);
     font-family:var(--mono);font-size:14px;letter-spacing:.05em;outline:none;
     transition:border-color .2s,box-shadow .2s}
-  .search input:focus{border-color:var(--flame-line);box-shadow:0 0 0 4px var(--flame-dim)}
+  .search input:focus{border-color:var(--volt-line);box-shadow:0 0 0 4px var(--volt-dim)}
   .search input::placeholder{font-family:var(--sans);letter-spacing:0;color:var(--ghost)}
   .segs{display:flex;gap:4px;padding:4px;border-radius:var(--r);border:1px solid var(--edge);
         background:var(--surface)}
   .segs button{min-height:40px;padding:9px 15px;border:none;border-radius:9px;background:none;
-    color:var(--muted);font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;
-    transition:.18s var(--ease)}
-  .segs button:hover{color:var(--text)}
-  .segs button.on{background:var(--surface-3);color:var(--text);
-                  box-shadow:0 1px 0 rgba(255,255,255,.06) inset}
+    color:var(--muted);font-family:inherit;font-size:13px;font-weight:700;cursor:pointer}
+  .segs button.on{background:var(--surface-3);color:var(--text)}
 
-  .th,.tr{display:grid;grid-template-columns:142px minmax(0,1fr) 112px 132px 138px;
-          gap:16px;align-items:center;padding:14px 18px}
-  .th{border-bottom:1px solid var(--edge);font-family:var(--mono);font-size:10px;
+  .th-row,.tr{display:grid;grid-template-columns:140px minmax(0,1fr) 110px 130px 136px;
+              gap:15px;align-items:center;padding:14px 18px}
+  .th-row{border-bottom:1px solid var(--edge);font-family:var(--mono);font-size:10px;
       letter-spacing:.16em;text-transform:uppercase;color:var(--ghost)}
   .tr{border-bottom:1px solid var(--edge-2);position:relative;transition:background .18s}
   .tr:last-child{border-bottom:none}
   .tr:hover{background:rgba(255,255,255,.022)}
   .tr::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;
-    background:var(--grad-flame);transform:scaleY(0);transition:transform .3s var(--ease-out)}
+    background:var(--grad-volt);transform:scaleY(0);transition:transform .3s var(--ease-out)}
   .tr.hit::before{transform:scaleY(1)}
-  .tr.hit{background:var(--flame-dim)}
+  .tr.hit{background:var(--volt-dim)}
   .tr.settled{opacity:.5}
   .refc{font-family:var(--mono);font-weight:700;font-size:13.5px;letter-spacing:.06em;
-        color:var(--flame-2)}
-  .cust{font-weight:700;font-size:13.5px;letter-spacing:-.012em}
+        color:var(--volt-2)}
+  .cust{font-weight:700;font-size:13.5px}
   .item{font-size:12.5px;color:var(--muted);margin-top:2px}
   .via{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:var(--faint);
        margin-top:5px}
@@ -72,16 +107,10 @@
   .pill.await{background:var(--hold-dim);color:var(--hold);border-color:rgba(251,191,36,.3)}
   .pill.paid{background:var(--go-dim);color:var(--go);border-color:rgba(52,211,153,.32)}
   .pill.exp{background:var(--stop-dim);color:var(--stop);border-color:rgba(248,113,113,.3)}
-  .pill.exp i{animation:pulse 1.7s infinite}
-
-  .empty{padding:56px 20px;text-align:center;color:var(--ghost)}
-  .empty svg{margin:0 auto 14px;color:var(--surface-3)}
-
+  .empty{padding:52px 20px;text-align:center;color:var(--ghost)}
   @media (max-width:880px){
-    .th{display:none}
-    .tr{grid-template-columns:1fr auto;gap:10px;padding:15px 16px}
-    .tr>div:nth-child(3){text-align:right;font-size:15px}
-    .tr>div:nth-child(4),.tr>div:nth-child(5){grid-column:span 1}
+    .th-row{display:none}
+    .tr{grid-template-columns:1fr auto;gap:10px}
     .tr>div:nth-child(5){display:flex;justify-content:flex-end}
   }
 </style>
@@ -95,12 +124,12 @@
       Ron Cartel
     </a>
     <nav class="nav">
-      <a href="admin.html" class="on">Payments</a>
-      <a href="index.html">Storefront</a>
+      <a href="index.html">Shop</a>
+      <a href="checkout.html">Checkout</a>
+      <a href="admin.html" class="on">Admin</a>
     </nav>
     <div class="topbar-r">
-      <span class="chip"><span class="live" aria-hidden="true"></span>Bank feed idle</span>
-      <span class="chip" style="padding-left:5px"><span style="width:24px;height:24px;border-radius:50%;background:var(--grad-flame);color:#1A0700;display:grid;place-items:center;font-size:10px;font-weight:900">JM</span>Jay</span>
+      <span class="chip" style="padding-left:5px"><span style="width:24px;height:24px;border-radius:50%;background:var(--grad-volt);color:#04121F;display:grid;place-items:center;font-size:10px;font-weight:900">JM</span>Jay</span>
     </div>
   </div>
 </header>
@@ -110,70 +139,313 @@
 
   <div class="adm-head">
     <div class="rv">
-      <p class="eyebrow" style="margin:0 0 9px">Admin · Orders</p>
-      <h1 class="display" style="font-size:clamp(26px,3.4vw,38px)">Payment <span class="lit">matching</span></h1>
-    </div>
-    <p class="lede rv" style="margin:0 0 4px;font-size:14px">Paste a reference straight from your bank feed or PayPal activity and the order jumps to the top.</p>
-  </div>
-
-  <div class="stats">
-    <div class="stat hold rv">
-      <div class="k"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 6.5V12l3.6 1.8"/></svg>Awaiting payment</div>
-      <div class="v" id="s-await">0</div>
-    </div>
-    <div class="stat cash rv">
-      <div class="k"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.5v19M16.5 6H9.8a3.3 3.3 0 000 6.6h4.4a3.3 3.3 0 010 6.6H7"/></svg>Value on hold</div>
-      <div class="v" id="s-value">£0</div>
-    </div>
-    <div class="stat good rv">
-      <div class="k"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>Confirmed today</div>
-      <div class="v" id="s-paid">0</div>
-    </div>
-    <div class="stat risk rv">
-      <div class="k"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/><path d="M12 9.5v4M12 17.5h.01"/></svg>Expiring under 3h</div>
-      <div class="v" id="s-exp">0</div>
+      <p class="eyebrow" style="margin:0 0 9px">Admin</p>
+      <h1 class="display" style="font-size:clamp(26px,3.4vw,38px)">Your <span class="lit">shop</span></h1>
     </div>
   </div>
 
-  <div class="bar rv">
-    <div class="search">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7.2"/><path d="M21 21l-4.3-4.3"/></svg>
-      <label for="q" class="hide">Search orders</label>
-      <input id="q" placeholder="Paste a reference, name or amount…" autocomplete="off" spellcheck="false">
-    </div>
-    <div class="segs" id="segs" role="tablist">
-      <button class="on" data-f="all" role="tab">All</button>
-      <button data-f="await" role="tab">Awaiting</button>
-      <button data-f="paid" role="tab">Confirmed</button>
-    </div>
+  <div class="tabs rv" role="tablist">
+    <button class="on" data-pane="products" role="tab">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><path d="M3 6h18M16 10a4 4 0 01-8 0"/></svg>
+      Products
+    </button>
+    <button data-pane="payments" role="tab">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="2.5"/><path d="M2 10h20"/></svg>
+      Payment matching
+    </button>
   </div>
 
-  <div class="panel spot rv">
-    <div class="th"><div>Reference</div><div>Customer</div><div>Amount</div><div>Status</div><div></div></div>
-    <div id="rows"></div>
-  </div>
+  <!-- ============ PRODUCTS ============ -->
+  <section class="pane on" id="pane-products">
+    <div class="cols">
+      <div class="panel spot rv">
+        <div class="panel-h">
+          <span class="hico" aria-hidden="true"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></span>
+          <h3 id="formTitle">Add a product</h3>
+          <button class="link-btn hide" id="cancelEdit" type="button">Cancel</button>
+        </div>
+        <div class="panel-b">
+          <form id="pform">
+            <div class="field">
+              <label for="f-name">Name</label>
+              <input id="f-name" required maxlength="80" placeholder="e.g. Grafted Light Bee — 72V build">
+            </div>
+            <div class="field">
+              <label for="f-blurb">Short description</label>
+              <textarea id="f-blurb" maxlength="200" placeholder="One or two lines shown under the name"></textarea>
+            </div>
+            <div class="grid2">
+              <div class="field">
+                <label for="f-price">Price £</label>
+                <input id="f-price" type="number" min="0" step="0.01" required placeholder="2400.00">
+              </div>
+              <div class="field">
+                <label for="f-was">Was £ <span style="color:var(--ghost);font-weight:400">optional</span></label>
+                <input id="f-was" type="number" min="0" step="0.01" placeholder="2800.00">
+              </div>
+            </div>
+            <div class="grid2">
+              <div class="field">
+                <label for="f-status">Availability</label>
+                <select id="f-status">
+                  <option value="stock">In stock</option>
+                  <option value="reserved">Reserved</option>
+                  <option value="sold">Sold</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="f-deposit">Collection deposit £</label>
+                <input id="f-deposit" type="number" min="0" step="0.01" placeholder="50.00">
+              </div>
+            </div>
+            <div class="field">
+              <label>Photo</label>
+              <div id="dropWrap">
+                <label class="drop" for="f-img">
+                  <span class="ic" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2.5"/><circle cx="8.8" cy="9" r="1.8"/><path d="M21 15.5l-5-5L5 21"/></svg></span>
+                  <p>Tap to add a photo — it's resized and stored on this device</p>
+                  <input id="f-img" type="file" accept="image/*">
+                </label>
+              </div>
+              <div class="hint">No photo? The bike graphic is used instead.</div>
+            </div>
+            <button class="btn wide" type="submit" id="submitBtn">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+              <span id="submitTxt">Add product</span>
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <div class="panel spot rv">
+        <div class="panel-h">
+          <span class="hico" aria-hidden="true"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></svg></span>
+          <h3>Listings</h3>
+          <span class="tag" id="pcount" style="margin-left:auto">0</span>
+        </div>
+        <div class="panel-b"><div class="plist" id="plist"></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ PAYMENTS ============ -->
+  <section class="pane" id="pane-payments">
+    <div class="stats">
+      <div class="stat hold">
+        <div class="k"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 6.5V12l3.6 1.8"/></svg>Awaiting payment</div>
+        <div class="v" id="s-await">0</div>
+      </div>
+      <div class="stat cash">
+        <div class="k"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.5v19M16.5 6H9.8a3.3 3.3 0 000 6.6h4.4a3.3 3.3 0 010 6.6H7"/></svg>Value on hold</div>
+        <div class="v" id="s-value">£0</div>
+      </div>
+      <div class="stat good">
+        <div class="k"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>Confirmed today</div>
+        <div class="v" id="s-paid">0</div>
+      </div>
+      <div class="stat risk">
+        <div class="k"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/><path d="M12 9.5v4M12 17.5h.01"/></svg>Expiring under 3h</div>
+        <div class="v" id="s-exp">0</div>
+      </div>
+    </div>
+
+    <div class="bar">
+      <div class="search">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7.2"/><path d="M21 21l-4.3-4.3"/></svg>
+        <label for="q" class="hide">Search orders</label>
+        <input id="q" placeholder="Paste a reference, name or amount…" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="segs" id="segs" role="tablist">
+        <button class="on" data-f="all" role="tab">All</button>
+        <button data-f="await" role="tab">Awaiting</button>
+        <button data-f="paid" role="tab">Confirmed</button>
+      </div>
+    </div>
+
+    <div class="panel spot">
+      <div class="th-row"><div>Reference</div><div>Customer</div><div>Amount</div><div>Status</div><div></div></div>
+      <div id="rows"></div>
+    </div>
+  </section>
 </main>
 </div>
 
 <script src="assets/app.js"></script>
 <script>
 (function(){
-  var $ = RC.$, $$ = RC.$$;
+  var $ = RC.$, $$ = RC.$$, esc = RC.esc;
+
+  /* ---------- tabs ---------- */
+  $$('.tabs button').forEach(function(b){
+    b.addEventListener('click', function(){
+      $$('.tabs button').forEach(function(x){ x.classList.remove('on'); });
+      $$('.pane').forEach(function(x){ x.classList.remove('on'); });
+      b.classList.add('on');
+      $('#pane-' + b.dataset.pane).classList.add('on');
+    });
+  });
+
+  /* ---------- products ---------- */
+  var editing = null, imgData = null;
+  var LABEL = {stock:'In stock', reserved:'Reserved', sold:'Sold'};
+
+  function shrink(file, cb){
+    var fr = new FileReader();
+    fr.onload = function(){
+      var im = new Image();
+      im.onload = function(){
+        var max = 1200, w = im.width, h = im.height;
+        if (w > max) { h = Math.round(h * max / w); w = max; }
+        var c = document.createElement('canvas');
+        c.width = w; c.height = h;
+        c.getContext('2d').drawImage(im, 0, 0, w, h);
+        cb(c.toDataURL('image/jpeg', 0.78));
+      };
+      im.onerror = function(){ cb(null); };
+      im.src = fr.result;
+    };
+    fr.onerror = function(){ cb(null); };
+    fr.readAsDataURL(file);
+  }
+
+  function showPreview(data){
+    var wrap = $('#dropWrap');
+    if (!data) {
+      wrap.innerHTML =
+        '<label class="drop" for="f-img"><span class="ic" aria-hidden="true">' +
+        '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2.5"/><circle cx="8.8" cy="9" r="1.8"/><path d="M21 15.5l-5-5L5 21"/></svg></span>' +
+        "<p>Tap to add a photo — it's resized and stored on this device</p>" +
+        '<input id="f-img" type="file" accept="image/*"></label>';
+    } else {
+      wrap.innerHTML = '<div class="preview"><img src="' + esc(data) + '" alt="">' +
+        '<button type="button" id="rmImg" aria-label="Remove photo">' +
+        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button></div>';
+    }
+    bindImg();
+  }
+
+  function bindImg(){
+    var inp = $('#f-img'), rm = $('#rmImg');
+    if (inp) inp.addEventListener('change', function(e){
+      var f = e.target.files && e.target.files[0];
+      if (!f) return;
+      shrink(f, function(d){
+        if (!d) { RC.toast('Could not read that image'); return; }
+        imgData = d; showPreview(d);
+      });
+    });
+    if (rm) rm.addEventListener('click', function(){ imgData = null; showPreview(null); });
+  }
+  bindImg();
+
+  function resetForm(){
+    editing = null; imgData = null;
+    $('#pform').reset(); showPreview(null);
+    $('#formTitle').textContent = 'Add a product';
+    $('#submitTxt').textContent = 'Add product';
+    $('#cancelEdit').classList.add('hide');
+  }
+  $('#cancelEdit').addEventListener('click', resetForm);
+
+  $('#pform').addEventListener('submit', function(e){
+    e.preventDefault();
+    var p = {
+      name:    $('#f-name').value.trim(),
+      blurb:   $('#f-blurb').value.trim(),
+      price:   parseFloat($('#f-price').value) || 0,
+      was:     $('#f-was').value ? parseFloat($('#f-was').value) : null,
+      status:  $('#f-status').value,
+      deposit: $('#f-deposit').value ? parseFloat($('#f-deposit').value) : null,
+      img:     imgData
+    };
+    if (!p.name) { RC.toast('Give it a name first'); return; }
+
+    var before = RC.store.all().length;
+    if (editing) {
+      RC.store.update(editing, p);
+      RC.toast('“' + p.name + '” updated');
+    } else {
+      RC.store.add(p);
+      if (RC.store.all().length === before) {
+        RC.toast('Out of storage — try a smaller photo');
+        return;
+      }
+      RC.toast('“' + p.name + '” is live on the shop');
+    }
+    resetForm(); renderProducts();
+  });
+
+  function edit(id){
+    var p = RC.store.get(id); if (!p) return;
+    editing = id; imgData = p.img || null;
+    $('#f-name').value = p.name || '';
+    $('#f-blurb').value = p.blurb || '';
+    $('#f-price').value = p.price != null ? p.price : '';
+    $('#f-was').value = p.was != null ? p.was : '';
+    $('#f-status').value = p.status || 'stock';
+    $('#f-deposit').value = p.deposit != null ? p.deposit : '';
+    showPreview(imgData);
+    $('#formTitle').textContent = 'Edit product';
+    $('#submitTxt').textContent = 'Save changes';
+    $('#cancelEdit').classList.remove('hide');
+    window.scrollTo({top:0, behavior: RC.reduced ? 'auto' : 'smooth'});
+  }
+
+  function renderProducts(){
+    var list = RC.store.all();
+    $('#pcount').textContent = list.length;
+    if (!list.length){
+      $('#plist').innerHTML =
+        '<div class="blank" style="padding:44px 20px">' +
+        '<div class="ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><path d="M3 6h18M16 10a4 4 0 01-8 0"/></svg></div>' +
+        '<h3>No listings yet</h3><p>Fill in the form and it appears on the shop immediately.</p></div>';
+      return;
+    }
+    $('#plist').innerHTML = list.map(function(p){
+      var art = p.img ? '<img src="' + esc(p.img) + '" alt="">'
+                      : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" style="color:var(--ghost);width:26px;height:26px"><circle cx="6" cy="17" r="4"/><circle cx="18" cy="17" r="4"/><path d="M6 17l4-8h6M13 9l3 8"/></svg>';
+      var badge = '<span class="tag ' + (p.status === 'stock' ? 'go' : '') + '">' +
+                  LABEL[p.status] + '</span>';
+      return '<div class="prow">' +
+        '<span class="th">' + art + '</span>' +
+        '<div style="min-width:0"><div class="nm">' + esc(p.name) + ' ' + badge + '</div>' +
+        '<div class="bl">' + esc(p.blurb || '—') + '</div></div>' +
+        '<span class="pr">£' + RC.money(p.price) + '</span>' +
+        '<span class="acts">' +
+        '<button class="iconbtn" data-edit="' + p.id + '" aria-label="Edit ' + esc(p.name) + '">' +
+        '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg></button>' +
+        '<button class="iconbtn danger" data-del="' + p.id + '" aria-label="Delete ' + esc(p.name) + '">' +
+        '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg></button>' +
+        '</span></div>';
+    }).join('');
+  }
+
+  $('#plist').addEventListener('click', function(e){
+    var ed = e.target.closest('[data-edit]'), dl = e.target.closest('[data-del]');
+    if (ed) edit(ed.dataset.edit);
+    if (dl) {
+      var p = RC.store.get(dl.dataset.del);
+      RC.store.remove(dl.dataset.del);
+      if (editing === dl.dataset.del) resetForm();
+      RC.toast((p ? '“' + p.name + '”' : 'Listing') + ' removed');
+      renderProducts();
+    }
+  });
+
+  renderProducts();
+
+  /* ---------- payment matching ---------- */
   var VIA = {
     bank:['Bank transfer','<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.6 9.4L12 3.6l9.4 5.8"/><path d="M5 10.6V19M19 10.6V19M12 10.6V19"/><path d="M2.6 20.4h18.8"/></svg>'],
     ppff:['PayPal F&amp;F','<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 20.2L8.3 6.4h5.4c2.7 0 4.2 1.5 3.8 3.9-.5 2.6-2.5 4.1-5.3 4.1H9.8L9 20.2z"/></svg>'],
     cash:['Deposit · collection','<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2.5"/><circle cx="12" cy="12" r="2.6"/></svg>']
   };
-
   var orders = [
-    {ref:'RC-K4M8QP', cust:'Danny Whyte',  item:'19" Supermoto front wheel',    amt:291.99, m:'bank', st:'await', hrs:21},
-    {ref:'RC-T7X2LB', cust:'Aaron Reid',   item:'Sprocket 52T + chain kit',     amt:118.49, m:'ppff', st:'await', hrs:2},
-    {ref:'RC-9WD3HN', cust:'Kacper N.',    item:'Fastace linkage shock',        amt:340.00, m:'bank', st:'await', hrs:17},
-    {ref:'RC-P2VJ6R', cust:'Leon Barratt', item:'Full wheelset + tyres',        amt:625.00, m:'cash', st:'await', hrs:1},
-    {ref:'RC-B5NQ8Z', cust:'Sam Okonkwo',  item:'4-pot brake caliper',          amt:159.99, m:'bank', st:'paid',  hrs:0},
-    {ref:'RC-F3RY7C', cust:'Mo Hassan',    item:'Controller loom + throttle',   amt:212.50, m:'ppff', st:'paid',  hrs:0}
+    {ref:'RC-K4M8QP', cust:'Danny Whyte',  item:'Grafted Light Bee — 72V',  amt:2450.00, m:'bank', st:'await', hrs:21},
+    {ref:'RC-T7X2LB', cust:'Aaron Reid',   item:'Collection deposit',        amt:250.00, m:'cash', st:'await', hrs:2},
+    {ref:'RC-9WD3HN', cust:'Kacper N.',    item:'Grafted Light Bee — stage 2', amt:1980.00, m:'bank', st:'await', hrs:17},
+    {ref:'RC-B5NQ8Z', cust:'Sam Okonkwo',  item:'Grafted Light Bee — 60V',  amt:1740.00, m:'ppff', st:'paid',  hrs:0}
   ];
-
   var filter = 'all', query = '';
 
   function stats(){
@@ -185,7 +457,7 @@
     $('#s-exp').textContent  = aw.filter(function(o){ return o.hrs <= 3; }).length;
   }
 
-  function render(){
+  function renderOrders(){
     var q = query.trim().toLowerCase();
     var list = orders.filter(function(o){
       if (filter !== 'all' && o.st !== filter) return false;
@@ -195,13 +467,7 @@
     if (q) list.sort(function(a,b){
       return (b.ref.toLowerCase() === q) - (a.ref.toLowerCase() === q);
     });
-
-    if (!list.length){
-      $('#rows').innerHTML = '<div class="empty">' +
-        '<svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7.2"/><path d="M21 21l-4.3-4.3"/></svg>' +
-        'Nothing matches that.</div>';
-      return;
-    }
+    if (!list.length){ $('#rows').innerHTML = '<div class="empty">Nothing matches that.</div>'; return; }
 
     $('#rows').innerHTML = list.map(function(o){
       var exact = q && o.ref.toLowerCase() === q;
@@ -215,7 +481,7 @@
           '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>Mark paid</button>';
       return '<div class="tr' + (exact ? ' hit' : '') + (o.st === 'paid' ? ' settled' : '') + '">' +
         '<div class="refc">' + o.ref + '</div>' +
-        '<div><div class="cust">' + o.cust + '</div><div class="item">' + o.item + '</div>' +
+        '<div><div class="cust">' + esc(o.cust) + '</div><div class="item">' + esc(o.item) + '</div>' +
         '<div class="via">' + VIA[o.m][1] + VIA[o.m][0] + '</div></div>' +
         '<div class="amtc">£' + o.amt.toFixed(2) + '</div>' +
         '<div>' + pill + '</div>' +
@@ -229,24 +495,23 @@
       var o = orders.find(function(x){ return x.ref === ok.dataset.ok; });
       o.st = 'paid';
       RC.toast(o.ref + ' confirmed' + (o.m === 'cash' ? ' — pickup address sent' : ' — receipt sent'));
-      stats(); render();
+      stats(); renderOrders();
     }
     if (un){
       var u = orders.find(function(x){ return x.ref === un.dataset.undo; });
       u.st = 'await'; u.hrs = u.hrs || 12;
       RC.toast(u.ref + ' back to awaiting');
-      stats(); render();
+      stats(); renderOrders();
     }
     var s = e.target.closest('#segs button');
     if (s){
       $$('#segs button').forEach(function(b){ b.classList.remove('on'); });
-      s.classList.add('on'); filter = s.dataset.f; render();
+      s.classList.add('on'); filter = s.dataset.f; renderOrders();
     }
   });
+  $('#q').addEventListener('input', function(e){ query = e.target.value; renderOrders(); });
 
-  $('#q').addEventListener('input', function(e){ query = e.target.value; render(); });
-
-  stats(); render();
+  stats(); renderOrders();
 })();
 </script>
 </body>

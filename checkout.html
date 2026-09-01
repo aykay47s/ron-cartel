@@ -49,7 +49,7 @@
     </a>
     <nav class="nav">
       <a href="index.html">Shop</a>
-      <a href="product.html">Wheels</a>
+      <a href="admin.html">Admin</a>
       <a href="checkout.html" class="on">Checkout</a>
     </nav>
     <div class="topbar-r">
@@ -229,15 +229,8 @@
         <h3>Your order</h3>
       </div>
       <div class="panel-b">
-        <div class="li">
-          <span class="li-thumb" aria-hidden="true"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="12" cy="12" r="9.2"/><circle cx="12" cy="12" r="6.4"/><circle cx="12" cy="12" r="2.4"/><path d="M12 2.8v3M12 18.2v3M2.8 12h3M18.2 12h3M5.5 5.5l2.1 2.1M16.4 16.4l2.1 2.1M18.5 5.5l-2.1 2.1M7.6 16.4l-2.1 2.1"/></svg></span>
-          <div>
-            <div class="li-t">19&quot; Supermoto Front Wheel</div>
-            <div class="li-s">Black anodised · Qty 1</div>
-          </div>
-          <div class="li-p">£285.00</div>
-        </div>
-        <div class="sum-row"><span>Subtotal</span><b>£285.00</b></div>
+        <div id="lineItems"></div>
+        <div class="sum-row"><span>Subtotal</span><b id="subVal">£0.00</b></div>
         <div class="sum-row"><span>Delivery <em id="shipName" style="font-style:normal;color:var(--ghost)">Royal Mail 24</em></span><b id="shipVal">£6.99</b></div>
         <div class="sum-total">
           <span class="lbl" id="totalLabel">Total</span>
@@ -265,7 +258,7 @@
     <div class="seal">
       <svg class="ring" viewBox="0 0 100 100" aria-hidden="true">
         <defs><linearGradient id="sealgrad" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stop-color="#FF5A1F"/><stop offset="1" stop-color="#FFB562"/>
+          <stop offset="0" stop-color="#2E8BFF"/><stop offset="1" stop-color="#A6CDFF"/>
         </linearGradient></defs>
         <circle class="bg" cx="50" cy="50" r="45"/>
         <circle class="fg" cx="50" cy="50" r="45"/>
@@ -306,7 +299,11 @@
 <script src="assets/app.js"></script>
 <script>
 (function(){
-  var SUBTOTAL = 285.00, DEPOSIT = 50.00;
+  var cart = null;
+  try { cart = JSON.parse(sessionStorage.getItem('rc.cart')); } catch (_) {}
+  var SUBTOTAL = cart ? cart.price * (cart.qty || 1) : 0;
+  var DEPOSIT  = cart && cart.deposit != null ? cart.deposit
+               : Math.min(50, Math.round(SUBTOTAL * 0.1 * 100) / 100);
   var $ = RC.$, $$ = RC.$$, money = RC.money;
   var ref = RC.makeRef();
   $$('.refOut').forEach(function(el){ RC.etch(el, ref); });
@@ -372,6 +369,29 @@
     window.scrollTo({top:0, behavior: RC.reduced ? 'auto' : 'smooth'});
   });
 
+  /* line item */
+  (function(){
+    var box = RC.$('#lineItems');
+    if (!cart) {
+      box.innerHTML = '<div style="padding:14px 0 16px;text-align:center;color:var(--muted);' +
+        'font-size:13.5px;border-bottom:1px solid var(--edge-2);margin-bottom:14px">' +
+        'Nothing selected — <a href="index.html" style="color:var(--volt-2);font-weight:700">' +
+        'pick something from the shop</a>.</div>';
+      RC.$('#place').disabled = true;
+      return;
+    }
+    var art = cart.img
+      ? '<img src="' + RC.esc(cart.img) + '" alt="" style="width:100%;height:100%;object-fit:cover">'
+      : RC.bike();
+    box.innerHTML =
+      '<div class="li"><span class="li-thumb" aria-hidden="true" style="overflow:hidden;padding:4px">' +
+      art + '</span><div><div class="li-t">' + RC.esc(cart.name) + '</div>' +
+      '<div class="li-s">' + (cart.blurb ? RC.esc(cart.blurb) + ' · ' : '') +
+      'Qty ' + (cart.qty || 1) + '</div></div>' +
+      '<div class="li-p">£' + RC.money(SUBTOTAL) + '</div></div>';
+  })();
+
+  RC.$('#subVal').textContent = '£' + money(SUBTOTAL);
   recalc();
 })();
 </script>

@@ -1,8 +1,3 @@
-databases:
-  - name: ron-cartel-db
-    plan: free
-    region: ohio
-
 services:
   - type: web
     name: ron-cartel-app
@@ -16,9 +11,8 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
-      # Render creates the database above and injects this itself.
-      # Nobody types a password anywhere.
+      # Set once in the Render dashboard (Environment tab). Never committed.
+      # Render's own free Postgres is not an option here: the account already
+      # has one, used by KS Exchange, and only one free database is allowed.
       - key: DATABASE_URL
-        fromDatabase:
-          name: ron-cartel-db
-          property: connectionString
+        sync: false

@@ -1,3 +1,8 @@
+databases:
+  - name: ron-cartel-db
+    plan: free
+    region: ohio
+
 services:
   - type: web
     name: ron-cartel-app
@@ -11,6 +16,9 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
-      # Set in the Render dashboard. Never committed.
+      # Render creates the database above and injects this itself.
+      # Nobody types a password anywhere.
       - key: DATABASE_URL
-        sync: false
+        fromDatabase:
+          name: ron-cartel-db
+          property: connectionString

@@ -3,12 +3,25 @@ import pg from 'pg';
 const { Pool } = pg;
 
 const URL_STR = process.env.DATABASE_URL || '';
-const isLocal = /@(localhost|127\.0\.0\.1)/.test(URL_STR);
+
+/* Work out whether TLS is wanted from the host itself:
+     Neon / any public host  -> has dots, needs TLS
+     Render's internal host  -> bare name like "dpg-abc123-a", no TLS
+     localhost               -> no TLS
+   DB_SSL=on|off overrides it if a host ever breaks the pattern. */
+function wantsSsl(urlStr) {
+  const forced = (process.env.DB_SSL || '').toLowerCase();
+  if (forced === 'on') return true;
+  if (forced === 'off') return false;
+  let host = '';
+  try { host = new URL(urlStr).hostname; } catch { return false; }
+  if (!host || host === 'localhost' || host === '127.0.0.1') return false;
+  return host.includes('.');
+}
 
 export const pool = new Pool({
   connectionString: URL_STR,
-  // Neon requires TLS; a local test cluster does not speak it at all.
-  ssl: isLocal ? false : { rejectUnauthorized: false },
+  ssl: wantsSsl(URL_STR) ? { rejectUnauthorized: false } : false,
   max: 8,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 10000,

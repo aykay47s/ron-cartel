@@ -4,7 +4,7 @@ import { join, extname, normalize } from 'node:path';
 import { serve } from '@hono/node-server';
 import { Hono } from 'hono';
 import { migrate, pool } from './db.js';
-import { sessionFrom, readCookie } from './auth.js';
+import { sessionFrom, readCookie, seedOwner } from './auth.js';
 import { publicRoutes } from './routes-public.js';
 import { checkoutRoutes } from './routes-checkout.js';
 import { adminRoutes } from './routes-admin.js';
@@ -89,6 +89,7 @@ if (!process.env.DATABASE_URL) {
 }
 
 migrate()
+  .then(seedOwner)
   .then(() => {
     serve({ fetch: app.fetch, port }, (info) => {
       console.log(`[ron-cartel] listening on :${info.port}`);

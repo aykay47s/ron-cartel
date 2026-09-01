@@ -37,10 +37,28 @@ export async function createAdmin(email, password) {
   );
 }
 
-export async function login(email, password) {
-  const admin = await one('select * from admins where email = lower($1)', [String(email).trim()]);
+/* One shop, one owner, one PIN. Seeded on first boot so there is no setup
+   step to get wrong; changeable from Settings straight after. */
+export const DEFAULT_PIN = process.env.ADMIN_PIN || '9247';
+
+export async function seedOwner() {
+  if ((await adminCount()) > 0) return false;
+  await createAdmin('owner', DEFAULT_PIN);
+  console.log('[auth] owner account created with the default PIN — change it in Settings');
+  return true;
+}
+
+export async function setPin(newPin) {
+  const hash = await hashPassword(newPin);
+  await q('update admins set pass_hash = $1', [hash]);
+  await q('delete from sessions');           // force every other device to re-enter it
+  return true;
+}
+
+export async function login(pin) {
+  const admin = await one('select * from admins order by id limit 1');
   if (!admin) return null;
-  if (!(await verifyPassword(password, admin.pass_hash))) return null;
+  if (!(await verifyPassword(pin, admin.pass_hash))) return null;
   const token = randomBytes(32).toString('hex');
   const expires = new Date(Date.now() + TTL_DAYS * 864e5);
   await q('insert into sessions (token, admin_id, expires_at) values ($1,$2,$3)',
@@ -87,7 +105,6 @@ export function clearCookie(c) {
 export async function requireAdmin(c, next) {
   const sess = await sessionFrom(readCookie(c));
   if (!sess) {
-    if ((await adminCount()) === 0) return c.redirect('/admin/setup');
     const back = encodeURIComponent(c.req.path);
     return c.redirect('/admin/login?next=' + back);
   }
@@ -97,7 +114,9 @@ export async function requireAdmin(c, next) {
 
 /* Cheap per-IP throttle on the login form. */
 const attempts = new Map();
-export function throttle(key, limit = 8, windowMs = 10 * 60_000) {
+/* A short PIN is only safe if guessing is slow. Five tries per quarter hour
+   turns 10,000 combinations into roughly three weeks of continuous attempts. */
+export function throttle(key, limit = 5, windowMs = 15 * 60_000) {
   const now = Date.now();
   const rec = attempts.get(key);
   if (!rec || now > rec.reset) {

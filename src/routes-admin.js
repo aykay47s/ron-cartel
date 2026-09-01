@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { q, one, many, getSettings, setSettings } from './db.js';
 import {
-  adminCount, createAdmin, login, logout, requireAdmin,
+  login, logout, requireAdmin, setPin, DEFAULT_PIN,
   readCookie, setCookie, clearCookie, throttle,
 } from './auth.js';
 import { layout, esc, money, pence, icon, productArt, flash, STATUS_LABEL } from './ui.js';
@@ -11,66 +11,33 @@ export const adminRoutes = new Hono();
 const MAX_IMAGE = 4 * 1024 * 1024;
 const ip = (c) => c.req.header('x-forwarded-for')?.split(',')[0]?.trim() || 'local';
 
-/* ---------------- first run ---------------- */
-adminRoutes.get('/admin/setup', async (c) => {
-  if ((await adminCount()) > 0) return c.redirect('/admin/login');
-  const body = shell(`
-    <p class="eyebrow" style="margin:0 0 9px">First run</p>
-    <h1 class="display" style="font-size:clamp(25px,3.3vw,34px)">Create your <span class="lit">admin login</span></h1>
-    <p class="lede" style="font-size:14.5px">This is the only account that can add stock or see orders. Once it exists, this page closes for good.</p>
-    ${flash('error', c.req.query('e'))}
-    <form method="post" action="/admin/setup" style="margin-top:22px">
-      <div class="field"><label for="e">Email</label>
-        <input id="e" name="email" type="email" required autocomplete="username"></div>
-      <div class="field"><label for="p">Password</label>
-        <input id="p" name="password" type="password" required minlength="10" autocomplete="new-password">
-        <div class="hint">At least 10 characters. Use something you don't use anywhere else.</div></div>
-      <button class="btn wide" type="submit">${icon.lock} Create account</button>
-    </form>`);
-  return c.html(layout({ title: 'Set up admin', body }));
-});
-
-adminRoutes.post('/admin/setup', async (c) => {
-  if ((await adminCount()) > 0) return c.redirect('/admin/login');
-  const f = await c.req.parseBody();
-  const email = String(f.email || '').trim();
-  const password = String(f.password || '');
-  if (!email || password.length < 10) {
-    return c.redirect('/admin/setup?e=' + encodeURIComponent('Password must be at least 10 characters.'));
-  }
-  await createAdmin(email, password);
-  const sess = await login(email, password);
-  setCookie(c, sess.token, sess.expires);
-  return c.redirect('/admin');
-});
-
 /* ---------------- login ---------------- */
 adminRoutes.get('/admin/login', async (c) => {
-  if ((await adminCount()) === 0) return c.redirect('/admin/setup');
   const body = shell(`
-    <p class="eyebrow" style="margin:0 0 9px">Admin</p>
-    <h1 class="display" style="font-size:clamp(25px,3.3vw,34px)">Sign <span class="lit">in</span></h1>
+    <p class="eyebrow" style="margin:0 0 9px">Ron Cartel</p>
+    <h1 class="display" style="font-size:clamp(25px,3.3vw,34px)">Owner <span class="lit">access</span></h1>
     ${flash('error', c.req.query('e'))}
     <form method="post" action="/admin/login" style="margin-top:22px">
       <input type="hidden" name="next" value="${esc(c.req.query('next') || '/admin')}">
-      <div class="field"><label for="e">Email</label>
-        <input id="e" name="email" type="email" required autocomplete="username"></div>
-      <div class="field"><label for="p">Password</label>
-        <input id="p" name="password" type="password" required autocomplete="current-password"></div>
+      <div class="field">
+        <label for="p">PIN</label>
+        <input id="p" name="pin" type="password" inputmode="numeric" required autofocus
+               autocomplete="current-password" style="font-family:var(--mono);
+               font-size:22px;letter-spacing:.4em;text-align:center">
+      </div>
       <button class="btn wide" type="submit">${icon.lock} Sign in</button>
     </form>`);
-  return c.html(layout({ title: 'Admin sign in', body }));
+  return c.html(layout({ title: 'Sign in', body }));
 });
 
 adminRoutes.post('/admin/login', async (c) => {
   const f = await c.req.parseBody();
   if (!throttle(ip(c))) {
-    return c.redirect('/admin/login?e=' + encodeURIComponent('Too many attempts. Try again in a few minutes.'));
+    return c.redirect('/admin/login?e=' +
+      encodeURIComponent('Too many tries. Wait fifteen minutes.'));
   }
-  const sess = await login(String(f.email || ''), String(f.password || ''));
-  if (!sess) {
-    return c.redirect('/admin/login?e=' + encodeURIComponent('That email and password do not match.'));
-  }
+  const sess = await login(String(f.pin || ''));
+  if (!sess) return c.redirect('/admin/login?e=' + encodeURIComponent('Wrong PIN.'));
   setCookie(c, sess.token, sess.expires);
   const next = String(f.next || '/admin');
   return c.redirect(next.startsWith('/admin') ? next : '/admin');
@@ -87,7 +54,7 @@ adminRoutes.post('/admin/logout', async (c) => {
 adminRoutes.use('/admin', requireAdmin);
 adminRoutes.use('/admin/*', async (c, next) => {
   const p = c.req.path;
-  if (p === '/admin/login' || p === '/admin/setup' || p === '/admin/logout') return next();
+  if (p === '/admin/login' || p === '/admin/logout') return next();
   return requireAdmin(c, next);
 });
 
@@ -273,6 +240,7 @@ adminRoutes.get('/admin/settings', async (c) => {
 
   const body = adminShell('settings', `
     ${flash('info', c.req.query('ok') ? 'Settings saved.' : '')}
+    ${flash('error', c.req.query('e'))}
     <form method="post" action="/admin/settings">
       <div class="cols2">
         <section class="panel spot">
@@ -345,7 +313,20 @@ adminRoutes.get('/admin/settings', async (c) => {
       </section>
 
       <button class="btn" type="submit" style="margin-top:20px">${icon.tick} Save settings</button>
-    </form>`);
+    </form>
+
+    <section class="panel spot" style="margin-top:18px">
+      <div class="panel-h"><span class="hico" aria-hidden="true">${icon.lock}</span><h3>Your PIN</h3></div>
+      <div class="panel-b">
+        <form method="post" action="/admin/pin" style="max-width:340px">
+          <div class="field"><label for="np">New PIN</label>
+            <input id="np" name="pin" type="password" inputmode="numeric" minlength="4" required
+                   style="font-family:var(--mono);font-size:19px;letter-spacing:.3em;text-align:center">
+            <div class="hint">Signs you out everywhere so the old PIN stops working.</div></div>
+          <button class="btn ghost" type="submit">${icon.lock} Change PIN</button>
+        </form>
+      </div>
+    </section>`);
 
   return c.html(layout({ title: 'Settings — Admin', body, active: 'admin', admin: c.get('admin') }));
 });
@@ -375,6 +356,17 @@ adminRoutes.post('/admin/settings', async (c) => {
     ]);
   }
   return c.redirect('/admin/settings?ok=1');
+});
+
+adminRoutes.post('/admin/pin', async (c) => {
+  const f = await c.req.parseBody();
+  const pin = String(f.pin || '').trim();
+  if (pin.length < 4) {
+    return c.redirect('/admin/settings?e=' + encodeURIComponent('PIN must be at least 4 characters.'));
+  }
+  await setPin(pin);
+  clearCookie(c);
+  return c.redirect('/admin/login?e=' + encodeURIComponent('PIN changed — sign in again.'));
 });
 
 /* ---------------- view helpers ---------------- */

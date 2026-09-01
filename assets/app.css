@@ -350,40 +350,12 @@ h2.sect{font-size:clamp(21px,2.6vw,29px);font-weight:800;letter-spacing:-.025em;
    THE BIKE — Sur-Ron Light Bee X, side view
    ============================================================ */
 .surron{width:100%;height:auto;overflow:visible;display:block}
-.surron .tyre{stroke:#23272E;stroke-width:9}
-.surron .knob line{stroke:#3A4049;stroke-width:2.6;stroke-linecap:round}
-.surron .rim{stroke:url(#acc);stroke-width:2.4}
-.surron .spoke line{stroke:#6E7A88;stroke-width:.9}
-.surron .hub{stroke:#8A94A0;stroke-width:1.8;fill:#12151A}
-.surron .hubdot{fill:var(--volt);stroke:none}
-.surron .rotate{transform-box:fill-box;transform-origin:center;
                 animation:spin 3.2s linear infinite}
 
-.surron .frame{stroke:#B7C1CC;stroke-width:3.2;stroke-linecap:round}
-.surron .frame.main{stroke-width:4.6}
-.surron .fork{stroke:#9AA5B2;stroke-width:4.2;stroke-linecap:round}
-.surron .fork.thin{stroke-width:2.4;opacity:.55}
-.surron .bars{stroke:#B7C1CC;stroke-width:3.4;stroke-linecap:round}
-.surron .bars.grip{stroke-width:4.4}
-.surron .arm{stroke:#A6B1BD;stroke-width:5;stroke-linecap:round}
-.surron .arm.thin{stroke-width:2.4;opacity:.45}
-.surron .shock{stroke:var(--volt);stroke-width:5;stroke-linecap:round}
-.surron .chain{stroke:#59636E;stroke-width:1.6;stroke-dasharray:3 3}
-.surron .sprocket{stroke:#8A94A0;stroke-width:1.6;fill:#12151A}
-.surron .motor{stroke:#8A94A0;stroke-width:2;fill:#161A20}
-.surron .motor.in{stroke:url(#acc);stroke-width:2}
-.surron .pivot{fill:var(--volt);stroke:none}
-.surron .batt{fill:url(#cell);stroke:rgba(46,139,255,.55);stroke-width:1.6}
-.surron .cells{stroke:rgba(46,139,255,.4);stroke-width:1.2;
                animation:charge 3.4s ease-in-out infinite}
-.surron .seat,.surron .plate{fill:#1A1F26;stroke:#8A94A0;stroke-width:1.6}
-.surron .guard{fill:#161A20;stroke:#79848F;stroke-width:1.5}
-.surron .tail{stroke:#8A94A0;stroke-width:3;stroke-linecap:round}
-.surron .ground{stroke:rgba(255,255,255,.09);stroke-width:1.5}
-.surron .dashes{stroke:rgba(46,139,255,.45);stroke-width:2;stroke-dasharray:20 28;
+              animation:charge 3.4s ease-in-out infinite}
+
                 animation:road 1.05s linear infinite}
-.surron .rig{animation:bob 2.9s ease-in-out infinite}
-.surron .front{animation:forkdip 2.9s ease-in-out infinite}
 @keyframes road{to{stroke-dashoffset:-48}}
 @keyframes charge{0%,100%{opacity:.35}50%{opacity:1}}
 @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-2.5px)}}
@@ -430,3 +402,25 @@ h2.sect{font-size:clamp(21px,2.6vw,29px);font-weight:800;letter-spacing:-.025em;
 .field .hint{font-size:12px;color:var(--faint);margin-top:5px}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}
 @media (max-width:560px){.grid2{grid-template-columns:1fr}}
+
+
+/* ============================================================
+   THE BIKE — cut-out photo of the real Light Bee X
+   ============================================================ */
+.surron{position:relative;margin:0;display:block;width:100%;
+        animation:hover 5.2s ease-in-out infinite}
+.surron img{width:100%;height:auto;display:block;position:relative;z-index:1;
+  filter:drop-shadow(0 26px 34px rgba(0,0,0,.65))
+         drop-shadow(0 0 60px rgba(46,139,255,.12))}
+.surron .shadow{position:absolute;left:8%;right:8%;bottom:2%;height:16px;border-radius:50%;
+  background:radial-gradient(ellipse,rgba(46,139,255,.3),transparent 70%);
+  filter:blur(11px);animation:squash 5.2s ease-in-out infinite}
+@keyframes hover{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
+@keyframes squash{0%,100%{transform:scaleX(1);opacity:.85}
+                  50%{transform:scaleX(.9);opacity:.6}}
+.card .art .surron{width:88%;animation:none}
+.card .art .surron img{filter:drop-shadow(0 12px 18px rgba(0,0,0,.6))}
+.card .art .surron .shadow{display:none}
+.li-thumb .surron{animation:none} .li-thumb .surron .shadow{display:none}
+.li-thumb .surron img{filter:none}
+@media (prefers-reduced-motion:reduce){.surron,.surron .shadow{animation:none}}

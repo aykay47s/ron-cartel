@@ -27,108 +27,17 @@ const RC = (function () {
      Sur-Ron Light Bee X, side view. 19" wire-spoke wheels front and rear,
      KKE telescopic fork, link-type rear shock, mid-mounted PMSM, and the
      open frame triangle where a dirt bike would carry its tank.        */
-  function spokes(cx, cy, r, n) {
-    let s = '';
-    for (let i = 0; i < n; i++) {
-      const a = (i / n) * Math.PI * 2;
-      s += `<line x1="${(cx + r * 0.20 * Math.cos(a)).toFixed(1)}"
-                  y1="${(cy + r * 0.20 * Math.sin(a)).toFixed(1)}"
-                  x2="${(cx + r * 0.88 * Math.cos(a)).toFixed(1)}"
-                  y2="${(cy + r * 0.88 * Math.sin(a)).toFixed(1)}"/>`;
-    }
-    return s;
-  }
-
-  function wheel(cx, cy, r, id) {
-    let knobs = '';
-    for (let i = 0; i < 34; i++) {
-      const a = (i / 34) * Math.PI * 2;
-      knobs += `<line x1="${(cx + (r - 5) * Math.cos(a)).toFixed(1)}"
-                      y1="${(cy + (r - 5) * Math.sin(a)).toFixed(1)}"
-                      x2="${(cx + (r + 3) * Math.cos(a)).toFixed(1)}"
-                      y2="${(cy + (r + 3) * Math.sin(a)).toFixed(1)}"/>`;
-    }
-    return `
-      <g class="wheel">
-        <g class="rotate" id="${id}">
-          <circle class="tyre" cx="${cx}" cy="${cy}" r="${r}"/>
-          <g class="knob">${knobs}</g>
-          <circle class="rim" cx="${cx}" cy="${cy}" r="${r - 11}"/>
-          <g class="spoke">${spokes(cx, cy, r - 11, 18)}</g>
-          <circle class="hub" cx="${cx}" cy="${cy}" r="${r * 0.19}"/>
-          <circle class="hubdot" cx="${cx}" cy="${cy}" r="3"/>
-        </g>
-      </g>`;
-  }
-
+  /* ---------- the bike ----------
+     A cut-out photo of the real Light Bee X, not a drawing. Kept as one
+     helper so every surface (hero, card fallback, cart thumb) shares it. */
   function bike(cls) {
-    /* Proportioned off the real bike: wheelbase 1260mm, 19" wheels,
-       seat 810mm, overall height 1040mm. Ground sits at y=224.        */
-    const FX = 106, RX = 324, AY = 168, R = 56;
-    return `
-<svg class="surron ${cls || ''}" viewBox="0 0 430 258" fill="none" aria-hidden="true">
-  <defs>
-    <linearGradient id="acc" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#8FC4FF"/><stop offset=".55" stop-color="#2E8BFF"/>
-      <stop offset="1" stop-color="#0E3A6B"/>
-    </linearGradient>
-    <linearGradient id="cell" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#2E8BFF" stop-opacity=".55"/>
-      <stop offset="1" stop-color="#2E8BFF" stop-opacity=".07"/>
-    </linearGradient>
-  </defs>
-
-  <line class="ground" x1="10" y1="232" x2="420" y2="232"/>
-  <line class="dashes" x1="10" y1="232" x2="420" y2="232"/>
-
-  <g class="rig">
-    <!-- swingarm + link shock -->
-    <path class="arm" d="M248 176 L${RX} ${AY}"/>
-    <path class="arm thin" d="M250 184 L${RX - 8} ${AY + 8}"/>
-    <path class="shock" d="M272 108 L293 156"/>
-    <path class="frame" d="M293 156 L272 172"/>
-    <circle class="pivot" cx="248" cy="176" r="4"/>
-
-    <!-- chain run -->
-    <path class="chain" d="M250 172 L${RX} ${AY - 2}"/>
-    <path class="chain" d="M250 180 L${RX} ${AY + 13}"/>
-    <circle class="sprocket" cx="${RX}" cy="${AY}" r="14"/>
-    <circle class="sprocket" cx="250" cy="176" r="7"/>
-
-    <!-- mid-mounted PMSM -->
-    <circle class="motor" cx="242" cy="176" r="19"/>
-    <circle class="motor in" cx="242" cy="176" r="11"/>
-
-    <!-- frame: perimeter with the open triangle -->
-    <path class="frame main" d="M170 100 L268 106"/>
-    <path class="frame main" d="M162 128 L230 178"/>
-    <path class="frame main" d="M268 106 L246 174"/>
-    <path class="frame" d="M230 178 L248 176"/>
-    <path class="frame" d="M268 106 L252 96"/>
-
-    <!-- battery pack in the triangle -->
-    <path class="batt" d="M182 110 L256 114 L240 164 L200 160 Z"/>
-    <path class="cells" d="M196 111 L196 161 M210 112 L210 162
-                           M224 113 L224 163 M238 114 L238 164"/>
-
-    <!-- seat + subframe -->
-    <path class="seat" d="M246 97 C278 91 310 90 332 96 L330 105 C308 100 278 101 250 106 Z"/>
-    <path class="tail" d="M268 106 L332 100"/>
-
-    <!-- front end -->
-    <g class="front">
-      <path class="frame main" d="M170 100 L162 130"/>
-      <path class="fork" d="M166 104 L${FX + 6} ${AY - 4}"/>
-      <path class="fork thin" d="M176 102 L${FX + 17} ${AY - 7}"/>
-      <path class="bars" d="M172 98 L166 62"/>
-      <path class="bars grip" d="M148 58 L184 64"/>
-      <path class="plate" d="M148 102 L172 93 L180 119 L156 128 Z"/>
-      ${wheel(FX, AY, R, 'w-front')}
-    </g>
-
-    ${wheel(RX, AY, R, 'w-rear')}
-  </g>
-</svg>`;
+    return `<figure class="surron ${cls || ''}">
+      <picture>
+        <source srcset="assets/bike.webp" type="image/webp">
+        <img src="assets/bike.png" alt="Sur-Ron Light Bee X" loading="lazy" decoding="async">
+      </picture>
+      <span class="shadow" aria-hidden="true"></span>
+    </figure>`;
   }
 
   /* ---------- pointer spotlight ---------- */

@@ -3,173 +3,25 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Product — Ron Cartel</title>
 <meta name="robots" content="noindex">
+<title>Ron Cartel</title>
 <link rel="stylesheet" href="assets/app.css">
-<style>
-  .pdp{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);gap:38px;
-       padding:30px 0 90px;align-items:start}
-  @media (max-width:940px){.pdp{grid-template-columns:1fr;gap:24px;padding-top:20px}}
-  .stage{position:relative;border-radius:var(--r-lg);border:1px solid var(--edge);
-    background:radial-gradient(ellipse at 48% 32%,#1C2027,#0B0D10 76%);
-    aspect-ratio:16/11;display:grid;place-items:center;overflow:hidden;
-    box-shadow:var(--shadow);padding:22px}
-  .stage::after{content:'';position:absolute;inset:0;pointer-events:none;
-    background:radial-gradient(ellipse at 50% 116%,rgba(46,139,255,.2),transparent 56%)}
-  .stage img{width:100%;height:100%;object-fit:cover;position:absolute;inset:0}
-  .stage .surron{width:88%;position:relative;z-index:1}
-  .stage .tags{position:absolute;z-index:2;top:14px;left:14px;display:flex;gap:7px}
-  .buy .price-row{display:flex;align-items:baseline;gap:12px;margin:14px 0 6px;flex-wrap:wrap}
-  .buy .price{font-family:var(--mono);font-weight:700;font-size:38px;letter-spacing:-.05em;
-    background:linear-gradient(180deg,#fff,#AEB7C1);-webkit-background-clip:text;
-    background-clip:text;color:transparent}
-  .buy .was{font-family:var(--mono);color:var(--ghost);text-decoration:line-through;font-size:17px}
-  .qty{display:flex;align-items:center;border:1px solid var(--edge);border-radius:var(--r-sm);
-       background:var(--surface-2);overflow:hidden;width:max-content}
-  .qty button{width:46px;height:46px;background:none;border:none;color:var(--muted);
-              cursor:pointer;font-size:19px}
-  .qty button:hover{background:var(--surface-3);color:var(--text)}
-  .qty .n{width:48px;text-align:center;font-family:var(--mono);font-weight:700;font-size:15px}
-  .buyrow{display:flex;gap:11px;margin-top:22px;flex-wrap:wrap}
-  .facts{margin-top:26px;border-top:1px solid var(--edge-2);padding-top:6px}
-  .fact{border-bottom:1px solid var(--edge-2)}
-  .fact summary{list-style:none;cursor:pointer;padding:15px 2px;display:flex;
-    align-items:center;gap:11px;font-weight:700;font-size:14px;min-height:44px}
-  .fact summary::-webkit-details-marker{display:none}
-  .fact summary .cv{margin-left:auto;color:var(--faint);transition:transform .3s var(--ease)}
-  .fact[open] summary .cv{transform:rotate(180deg)}
-  .fact .in{padding:0 2px 16px;color:var(--muted);font-size:13.5px;line-height:1.65}
-  .fact .in ul{margin:0;padding-left:18px} .fact .in li{margin-bottom:5px}
-  .spectable{display:grid;grid-template-columns:auto 1fr;gap:8px 20px;font-size:13px}
-  .spectable dt{color:var(--faint)} .spectable dd{margin:0;font-family:var(--mono);color:var(--text)}
-</style>
+<meta http-equiv="refresh" content="3; url=/">
 </head>
 <body>
-
-<header class="topbar">
-  <div class="topbar-in">
-    <a class="logo" href="index.html">
-      <span class="glyph" aria-hidden="true"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M15 6a1 1 0 100-2 1 1 0 000 2zM12 17.5V14l-3-3 4-3 2 3h3"/></svg></span>
-      Ron Cartel
-    </a>
-    <nav class="nav">
-      <a href="index.html">Shop</a>
-      <a href="checkout.html">Checkout</a>
-      <a href="admin.html">Admin</a>
-    </nav>
-    <div class="topbar-r">
-      <span class="chip"><span class="live" aria-hidden="true"></span>Dispatching today</span>
-    </div>
+<header class="topbar"><div class="topbar-in">
+  <a class="logo" href="/">
+    <span class="glyph" aria-hidden="true"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M15 6a1 1 0 100-2 1 1 0 000 2zM12 17.5V14l-3-3 4-3 2 3h3"/></svg></span>
+    Ron Cartel
+  </a>
+</div></header>
+<div class="page"><main class="shell">
+  <div class="blank" style="margin:70px auto 100px;max-width:560px">
+    <div class="ico" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><path d="M3 6h18M16 10a4 4 0 01-8 0"/></svg></div>
+    <h3>Checkout isn't open yet</h3>
+    <p>Ordering opens when stock goes up. Taking you back to the shop.</p>
+    <a class="btn" href="/" style="display:inline-flex">Back to the shop</a>
   </div>
-</header>
-
-<div class="page">
-<main class="shell" id="wrap"></main>
-</div>
-
-<script src="assets/app.js"></script>
-<script>
-(function(){
-  var $ = RC.$, esc = RC.esc;
-  var id = new URLSearchParams(location.search).get('id');
-  var p = id ? RC.store.get(id) : null;
-  var LABEL = {stock:'In stock', reserved:'Reserved', sold:'Sold'};
-
-  if (!p) {
-    $('#wrap').innerHTML =
-      '<div class="blank" style="margin:60px 0 90px">' +
-      '<div class="ico"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7.2"/><path d="M21 21l-4.3-4.3"/></svg></div>' +
-      '<h3>That listing isn’t here</h3>' +
-      '<p>It may have been removed, or the link is from another device — listings are stored in the browser they were added on.</p>' +
-      '<a class="btn" href="index.html" style="display:inline-flex">Back to the shop</a></div>';
-    return;
-  }
-
-  document.title = p.name + ' — Ron Cartel';
-  var gone = p.status !== 'stock';
-  var art = p.img ? '<img src="' + esc(p.img) + '" alt="' + esc(p.name) + '">' : RC.bike();
-  var dep = p.deposit != null ? p.deposit : null;
-
-  $('#wrap').innerHTML =
-  '<div class="pdp">' +
-    '<div class="rv"><div class="stage spot">' +
-      '<div class="tags"><span class="tag ' + (gone ? '' : 'go') + '">' + LABEL[p.status] + '</span>' +
-      (dep != null ? '<span class="tag">Deposit £' + RC.money(dep) + '</span>' : '') + '</div>' +
-      art +
-    '</div></div>' +
-
-    '<div class="buy rv">' +
-      '<p class="eyebrow" style="margin:0 0 10px">Ron Cartel</p>' +
-      '<h1 class="display" style="font-size:clamp(26px,3.5vw,38px)">' + esc(p.name) + '</h1>' +
-      (p.blurb ? '<p class="lede" style="font-size:15px">' + esc(p.blurb) + '</p>' : '') +
-      '<div class="price-row"><span class="price">£' + RC.money(p.price) + '</span>' +
-        (p.was ? '<span class="was">£' + RC.money(p.was) + '</span>' : '') + '</div>' +
-
-      (gone
-        ? '<div class="note warn" style="margin-top:16px">' +
-          '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v5M12 16.5h.01"/></svg>' +
-          '<span>This one is marked <strong>' + LABEL[p.status].toLowerCase() +
-          '</strong>, so it can’t be ordered right now.</span></div>'
-        : '<div style="margin-top:20px"><div class="eyebrow" style="margin-bottom:9px">Quantity</div>' +
-          '<div class="qty"><button type="button" id="minus" aria-label="Decrease">−</button>' +
-          '<span class="n" id="qty">1</span>' +
-          '<button type="button" id="plus" aria-label="Increase">+</button></div></div>' +
-          '<div class="buyrow"><a class="btn" href="#" id="buy" style="flex:1;min-width:210px">' +
-          '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><path d="M3 6h18M16 10a4 4 0 01-8 0"/></svg>' +
-          'Buy now — <span id="btnPrice" class="num">£' + RC.money(p.price) + '</span></a>' +
-          '<a class="btn ghost" href="index.html">Back</a></div>') +
-
-      '<div class="facts">' +
-        '<details class="fact" open><summary>Delivery &amp; collection' +
-        '<span class="cv" aria-hidden="true"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></span></summary>' +
-        '<div class="in"><ul>' +
-        '<li><b>Royal Mail Tracked 24</b> — £6.99, ordered before 2pm</li>' +
-        '<li><b>DPD Next Day</b> — £9.99, one-hour window</li>' +
-        '<li><b>Royal Mail Tracked 48</b> — £3.49</li>' +
-        '<li><b>Collection in Manchester</b> — free' +
-        (dep != null ? ', £' + RC.money(dep) + ' deposit reserves it' : '') +
-        '; the address goes out once payment clears</li></ul></div></details>' +
-
-        '<details class="fact"><summary>Sur-Ron Light Bee X platform' +
-        '<span class="cv" aria-hidden="true"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></span></summary>' +
-        '<div class="in"><dl class="spectable">' +
-        '<dt>Wheels</dt><dd>19" wire-spoke, front &amp; rear</dd>' +
-        '<dt>Tyres</dt><dd>70/100-19</dd>' +
-        '<dt>Fork</dt><dd>KKE telescopic, adjustable</dd>' +
-        '<dt>Rear</dt><dd>KKE link-type shock</dd>' +
-        '<dt>Motor</dt><dd>PMSM, 3kW rated / 6kW peak</dd>' +
-        '<dt>Battery</dt><dd>60V 40Ah lithium</dd>' +
-        '<dt>Torque</dt><dd>250 Nm peak</dd>' +
-        '<dt>Weight</dt><dd>56 kg</dd>' +
-        '<dt>Top speed</dt><dd>75 km/h stock</dd>' +
-        '</dl><p style="margin:12px 0 0">Stock platform figures. Grafted builds change most of them — the listing description is what applies.</p></div></details>' +
-
-        '<details class="fact"><summary>Returns' +
-        '<span class="cv" aria-hidden="true"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></span></summary>' +
-        '<div class="in">14 days to change your mind from the day it arrives, under the Consumer Contracts Regulations. Built-to-order bikes are made to your spec, so those are the exception — ask before ordering if you’re unsure.</div></details>' +
-      '</div>' +
-    '</div>' +
-  '</div>';
-
-  RC.reveal();
-
-  if (!gone) {
-    var qty = 1;
-    function paint(){ RC.countTo($('#btnPrice'), p.price * qty, '£'); }
-    $('#plus').addEventListener('click', function(){ if(qty<9){qty++; $('#qty').textContent=qty; paint();} });
-    $('#minus').addEventListener('click', function(){ if(qty>1){qty--; $('#qty').textContent=qty; paint();} });
-    $('#buy').addEventListener('click', function(e){
-      e.preventDefault();
-      try {
-        sessionStorage.setItem('rc.cart', JSON.stringify({
-          id:p.id, name:p.name, blurb:p.blurb, price:p.price,
-          qty:qty, deposit:p.deposit, img:p.img
-        }));
-      } catch(_) {}
-      location.href = 'checkout.html';
-    });
-  }
-})();
-</script>
+</main></div>
 </body>
 </html>

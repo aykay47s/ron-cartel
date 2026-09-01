@@ -76,8 +76,6 @@
     </a>
     <nav class="nav">
       <a href="index.html" class="on">Shop</a>
-      <a href="checkout.html">Checkout</a>
-      <a href="admin.html">Admin</a>
     </nav>
     <div class="topbar-r">
       <span class="chip"><span class="live" aria-hidden="true"></span>Dispatching today</span>
@@ -132,9 +130,7 @@
 </main>
 
 <footer class="f shell">
-  <span>© 2026 Ron Cartel</span><span>·</span><span>Manchester, UK</span><span>·</span>
-  <a href="admin.html" style="color:var(--muted)">Admin</a>
-</footer>
+  <span>© 2026 Ron Cartel</span><span>·</span><span>Manchester, UK</span></footer>
 </div>
 
 <script src="assets/app.js"></script>
@@ -168,8 +164,10 @@
         '<div class="blank">' +
         '<div class="ico"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><path d="M3 6h18M16 10a4 4 0 01-8 0"/></svg></div>' +
         '<h3>Nothing listed yet</h3>' +
-        '<p>Stock goes up here as soon as the backend is in.</p>' +
-        '</div>';
+        '<p>Add your builds and parts in the admin panel — name, price, photo and whether they’re in stock. They appear here straight away.</p>' +
+        '<a class="btn" href="admin.html" style="display:inline-flex">' +
+        '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>' +
+        'Add your first product</a></div>';
       return;
     }
 

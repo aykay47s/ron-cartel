@@ -1,0 +1,97 @@
+export const esc = (s) => String(s ?? '').replace(/[&<>"']/g,
+  (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+/* Money lives in the database as integer pence and is only ever formatted
+   for display, so nothing rounds badly on the way through. */
+export const money = (p) => (Number(p || 0) / 100).toFixed(2);
+export const pence = (s) => {
+  const n = Math.round(parseFloat(String(s).replace(/[^0-9.]/g, '')) * 100);
+  return Number.isFinite(n) && n >= 0 ? n : 0;
+};
+
+export const REF_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+export function makeRef() {
+  let s = '';
+  for (let i = 0; i < 6; i++) s += REF_ALPHABET[Math.floor(Math.random() * REF_ALPHABET.length)];
+  return 'RC-' + s;
+}
+
+export const icon = {
+  bag: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><path d="M3 6h18M16 10a4 4 0 01-8 0"/></svg>',
+  lock: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2.5"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>',
+  tick: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>',
+  plus: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>',
+  edit: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg>',
+  bin: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>',
+  bank: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.6 9.4L12 3.6l9.4 5.8"/><path d="M5 10.6V19M19 10.6V19M12 10.6V19"/><path d="M2.6 20.4h18.8"/></svg>',
+  cog: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 00.3 1.9l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-2.9 1.2v.2a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.6 1.7 1.7 0 00-1.9.4l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00-1.2-2.9H3a2 2 0 110-4h.1a1.7 1.7 0 001.6-1.1 1.7 1.7 0 00-.4-1.9l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.9.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.9-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.9V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/></svg>',
+  box: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8l-9-5-9 5v8l9 5z"/><path d="M3.3 7.5L12 12.5l8.7-5M12 22V12.5"/></svg>',
+  out: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5M21 12H9"/></svg>',
+};
+
+export const STATUS_LABEL = { stock: 'In stock', reserved: 'Reserved', sold: 'Sold' };
+
+export function bikePhoto(cls = '') {
+  return `<figure class="surron ${cls}">
+    <picture>
+      <source srcset="/assets/bike.webp" type="image/webp">
+      <img src="/assets/bike.png" alt="Sur-Ron Light Bee X" loading="lazy" decoding="async">
+    </picture>
+    <span class="shadow" aria-hidden="true"></span>
+  </figure>`;
+}
+
+export function productArt(p) {
+  return p.image_id
+    ? `<img src="/img/${p.image_id}" alt="${esc(p.name)}" loading="lazy" decoding="async">`
+    : bikePhoto();
+}
+
+function nav(active, isAdmin) {
+  const link = (href, label, key) =>
+    `<a href="${href}"${active === key ? ' class="on"' : ''}>${label}</a>`;
+  return `<nav class="nav">
+    ${link('/', 'Shop', 'shop')}
+    ${isAdmin ? link('/admin', 'Admin', 'admin') : ''}
+  </nav>`;
+}
+
+export function layout({ title, body, active = '', admin = null, head = '', wide = false }) {
+  return `<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${esc(title)}</title>
+<link rel="stylesheet" href="/assets/app.css">
+${head}
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-in">
+    <a class="logo" href="/">
+      <span class="glyph" aria-hidden="true"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M15 6a1 1 0 100-2 1 1 0 000 2zM12 17.5V14l-3-3 4-3 2 3h3"/></svg></span>
+      Ron Cartel
+    </a>
+    ${nav(active, !!admin)}
+    <div class="topbar-r">
+      ${admin
+        ? `<span class="chip" style="padding-left:5px"><span style="width:24px;height:24px;border-radius:50%;background:var(--grad-volt);color:#04121F;display:grid;place-items:center;font-size:10px;font-weight:900">${esc((admin.email || '?')[0].toUpperCase())}</span>${esc(admin.email)}</span>
+           <form method="post" action="/admin/logout" style="display:inline"><button class="chip" type="submit" style="cursor:pointer">${icon.out}</button></form>`
+        : `<span class="chip"><span class="live" aria-hidden="true"></span>Dispatching today</span>`}
+    </div>
+  </div>
+</header>
+<div class="page">${body}</div>
+<script src="/assets/app.js"></script>
+</body>
+</html>`;
+}
+
+export function flash(kind, msg) {
+  if (!msg) return '';
+  const cls = kind === 'error' ? 'stop' : kind === 'warn' ? 'warn' : 'info';
+  return `<div class="note ${cls}" style="margin:0 0 18px">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4.5M12 8h.01"/></svg>
+    <span>${esc(msg)}</span></div>`;
+}

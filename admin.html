@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Payment matching — Ron Cartel Admin</title>
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="assets/app.css">
+<style>
+  .adm{padding:28px 0 90px}
+  .adm-head{display:flex;align-items:flex-end;gap:20px;flex-wrap:wrap;margin-bottom:26px}
+
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(178px,1fr));gap:14px;
+         margin-bottom:24px}
+  .stat{position:relative;overflow:hidden;padding:17px 18px;border-radius:var(--r-lg);
+    border:1px solid var(--edge);box-shadow:var(--shadow);
+    background:linear-gradient(180deg,var(--surface),var(--ink-2))}
+  .stat::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;opacity:.85}
+  .stat.hold::before{background:linear-gradient(90deg,var(--hold),transparent)}
+  .stat.cash::before{background:var(--grad-flame)}
+  .stat.good::before{background:linear-gradient(90deg,var(--go),transparent)}
+  .stat.risk::before{background:linear-gradient(90deg,var(--stop),transparent)}
+  .stat .k{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted);
+           font-weight:600}
+  .stat.hold .k svg{color:var(--hold)} .stat.cash .k svg{color:var(--flame-2)}
+  .stat.good .k svg{color:var(--go)}   .stat.risk .k svg{color:var(--stop)}
+  .stat .v{font-family:var(--mono);font-size:29px;font-weight:700;letter-spacing:-.05em;
+    margin-top:8px;background:linear-gradient(180deg,#fff,#A9B3BE);
+    -webkit-background-clip:text;background-clip:text;color:transparent}
+
+  .bar{display:flex;gap:12px;margin-bottom:18px;flex-wrap:wrap;align-items:center}
+  .search{flex:1;min-width:250px;position:relative}
+  .search svg{position:absolute;left:14px;top:50%;transform:translateY(-50%);
+              color:var(--ghost);pointer-events:none}
+  .search input{width:100%;min-height:48px;padding:13px 14px 13px 42px;border-radius:var(--r);
+    border:1px solid var(--edge);background:var(--surface);color:var(--text);
+    font-family:var(--mono);font-size:14px;letter-spacing:.05em;outline:none;
+    transition:border-color .2s,box-shadow .2s}
+  .search input:focus{border-color:var(--flame-line);box-shadow:0 0 0 4px var(--flame-dim)}
+  .search input::placeholder{font-family:var(--sans);letter-spacing:0;color:var(--ghost)}
+  .segs{display:flex;gap:4px;padding:4px;border-radius:var(--r);border:1px solid var(--edge);
+        background:var(--surface)}
+  .segs button{min-height:40px;padding:9px 15px;border:none;border-radius:9px;background:none;
+    color:var(--muted);font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;
+    transition:.18s var(--ease)}
+  .segs button:hover{color:var(--text)}
+  .segs button.on{background:var(--surface-3);color:var(--text);
+                  box-shadow:0 1px 0 rgba(255,255,255,.06) inset}
+
+  .th,.tr{display:grid;grid-template-columns:142px minmax(0,1fr) 112px 132px 138px;
+          gap:16px;align-items:center;padding:14px 18px}
+  .th{border-bottom:1px solid var(--edge);font-family:var(--mono);font-size:10px;
+      letter-spacing:.16em;text-transform:uppercase;color:var(--ghost)}
+  .tr{border-bottom:1px solid var(--edge-2);position:relative;transition:background .18s}
+  .tr:last-child{border-bottom:none}
+  .tr:hover{background:rgba(255,255,255,.022)}
+  .tr::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;
+    background:var(--grad-flame);transform:scaleY(0);transition:transform .3s var(--ease-out)}
+  .tr.hit::before{transform:scaleY(1)}
+  .tr.hit{background:var(--flame-dim)}
+  .tr.settled{opacity:.5}
+  .refc{font-family:var(--mono);font-weight:700;font-size:13.5px;letter-spacing:.06em;
+        color:var(--flame-2)}
+  .cust{font-weight:700;font-size:13.5px;letter-spacing:-.012em}
+  .item{font-size:12.5px;color:var(--muted);margin-top:2px}
+  .via{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:var(--faint);
+       margin-top:5px}
+  .amtc{font-family:var(--mono);font-weight:700;font-size:14px;letter-spacing:-.03em}
+  .pill{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;
+        padding:5px 11px;border-radius:99px;white-space:nowrap;border:1px solid transparent}
+  .pill i{width:6px;height:6px;border-radius:50%;background:currentColor;flex:none}
+  .pill.await{background:var(--hold-dim);color:var(--hold);border-color:rgba(251,191,36,.3)}
+  .pill.paid{background:var(--go-dim);color:var(--go);border-color:rgba(52,211,153,.32)}
+  .pill.exp{background:var(--stop-dim);color:var(--stop);border-color:rgba(248,113,113,.3)}
+  .pill.exp i{animation:pulse 1.7s infinite}
+
+  .empty{padding:56px 20px;text-align:center;color:var(--ghost)}
+  .empty svg{margin:0 auto 14px;color:var(--surface-3)}
+
+  @media (max-width:880px){
+    .th{display:none}
+    .tr{grid-template-columns:1fr auto;gap:10px;padding:15px 16px}
+    .tr>div:nth-child(3){text-align:right;font-size:15px}
+    .tr>div:nth-child(4),.tr>div:nth-child(5){grid-column:span 1}
+    .tr>div:nth-child(5){display:flex;justify-content:flex-end}
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-in">
+    <a class="logo" href="index.html">
+      <span class="glyph" aria-hidden="true"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M15 6a1 1 0 100-2 1 1 0 000 2zM12 17.5V14l-3-3 4-3 2 3h3"/></svg></span>
+      Ron Cartel
+    </a>
+    <nav class="nav">
+      <a href="admin.html" class="on">Payments</a>
+      <a href="index.html">Storefront</a>
+    </nav>
+    <div class="topbar-r">
+      <span class="chip"><span class="live" aria-hidden="true"></span>Bank feed idle</span>
+      <span class="chip" style="padding-left:5px"><span style="width:24px;height:24px;border-radius:50%;background:var(--grad-flame);color:#1A0700;display:grid;place-items:center;font-size:10px;font-weight:900">JM</span>Jay</span>
+    </div>
+  </div>
+</header>
+
+<div class="page">
+<main class="shell adm">
+
+  <div class="adm-head">
+    <div class="rv">
+      <p class="eyebrow" style="margin:0 0 9px">Admin · Orders</p>
+      <h1 class="display" style="font-size:clamp(26px,3.4vw,38px)">Payment <span class="lit">matching</span></h1>
+    </div>
+    <p class="lede rv" style="margin:0 0 4px;font-size:14px">Paste a reference straight from your bank feed or PayPal activity and the order jumps to the top.</p>
+  </div>
+
+  <div class="stats">
+    <div class="stat hold rv">
+      <div class="k"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 6.5V12l3.6 1.8"/></svg>Awaiting payment</div>
+      <div class="v" id="s-await">0</div>
+    </div>
+    <div class="stat cash rv">
+      <div class="k"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.5v19M16.5 6H9.8a3.3 3.3 0 000 6.6h4.4a3.3 3.3 0 010 6.6H7"/></svg>Value on hold</div>
+      <div class="v" id="s-value">£0</div>
+    </div>
+    <div class="stat good rv">
+      <div class="k"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>Confirmed today</div>
+      <div class="v" id="s-paid">0</div>
+    </div>
+    <div class="stat risk rv">
+      <div class="k"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/><path d="M12 9.5v4M12 17.5h.01"/></svg>Expiring under 3h</div>
+      <div class="v" id="s-exp">0</div>
+    </div>
+  </div>
+
+  <div class="bar rv">
+    <div class="search">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7.2"/><path d="M21 21l-4.3-4.3"/></svg>
+      <label for="q" class="hide">Search orders</label>
+      <input id="q" placeholder="Paste a reference, name or amount…" autocomplete="off" spellcheck="false">
+    </div>
+    <div class="segs" id="segs" role="tablist">
+      <button class="on" data-f="all" role="tab">All</button>
+      <button data-f="await" role="tab">Awaiting</button>
+      <button data-f="paid" role="tab">Confirmed</button>
+    </div>
+  </div>
+
+  <div class="panel spot rv">
+    <div class="th"><div>Reference</div><div>Customer</div><div>Amount</div><div>Status</div><div></div></div>
+    <div id="rows"></div>
+  </div>
+</main>
+</div>
+
+<script src="assets/app.js"></script>
+<script>
+(function(){
+  var $ = RC.$, $$ = RC.$$;
+  var VIA = {
+    bank:['Bank transfer','<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.6 9.4L12 3.6l9.4 5.8"/><path d="M5 10.6V19M19 10.6V19M12 10.6V19"/><path d="M2.6 20.4h18.8"/></svg>'],
+    ppff:['PayPal F&amp;F','<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 20.2L8.3 6.4h5.4c2.7 0 4.2 1.5 3.8 3.9-.5 2.6-2.5 4.1-5.3 4.1H9.8L9 20.2z"/></svg>'],
+    cash:['Deposit · collection','<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2.5"/><circle cx="12" cy="12" r="2.6"/></svg>']
+  };
+
+  var orders = [
+    {ref:'RC-K4M8QP', cust:'Danny Whyte',  item:'19" Supermoto front wheel',    amt:291.99, m:'bank', st:'await', hrs:21},
+    {ref:'RC-T7X2LB', cust:'Aaron Reid',   item:'Sprocket 52T + chain kit',     amt:118.49, m:'ppff', st:'await', hrs:2},
+    {ref:'RC-9WD3HN', cust:'Kacper N.',    item:'Fastace linkage shock',        amt:340.00, m:'bank', st:'await', hrs:17},
+    {ref:'RC-P2VJ6R', cust:'Leon Barratt', item:'Full wheelset + tyres',        amt:625.00, m:'cash', st:'await', hrs:1},
+    {ref:'RC-B5NQ8Z', cust:'Sam Okonkwo',  item:'4-pot brake caliper',          amt:159.99, m:'bank', st:'paid',  hrs:0},
+    {ref:'RC-F3RY7C', cust:'Mo Hassan',    item:'Controller loom + throttle',   amt:212.50, m:'ppff', st:'paid',  hrs:0}
+  ];
+
+  var filter = 'all', query = '';
+
+  function stats(){
+    var aw = orders.filter(function(o){ return o.st === 'await'; });
+    $('#s-await').textContent = aw.length;
+    $('#s-value').textContent = '£' + aw.reduce(function(a,o){ return a + o.amt; }, 0)
+                                 .toLocaleString('en-GB', {maximumFractionDigits:0});
+    $('#s-paid').textContent = orders.filter(function(o){ return o.st === 'paid'; }).length;
+    $('#s-exp').textContent  = aw.filter(function(o){ return o.hrs <= 3; }).length;
+  }
+
+  function render(){
+    var q = query.trim().toLowerCase();
+    var list = orders.filter(function(o){
+      if (filter !== 'all' && o.st !== filter) return false;
+      if (!q) return true;
+      return (o.ref + ' ' + o.cust + ' ' + o.item + ' ' + o.amt).toLowerCase().indexOf(q) > -1;
+    });
+    if (q) list.sort(function(a,b){
+      return (b.ref.toLowerCase() === q) - (a.ref.toLowerCase() === q);
+    });
+
+    if (!list.length){
+      $('#rows').innerHTML = '<div class="empty">' +
+        '<svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7.2"/><path d="M21 21l-4.3-4.3"/></svg>' +
+        'Nothing matches that.</div>';
+      return;
+    }
+
+    $('#rows').innerHTML = list.map(function(o){
+      var exact = q && o.ref.toLowerCase() === q;
+      var pill = o.st === 'paid'
+        ? '<span class="pill paid"><i></i>Confirmed</span>'
+        : (o.hrs <= 3 ? '<span class="pill exp"><i></i>' + o.hrs + 'h left</span>'
+                      : '<span class="pill await"><i></i>Awaiting</span>');
+      var act = o.st === 'paid'
+        ? '<button class="btn ghost sm" data-undo="' + o.ref + '">Undo</button>'
+        : '<button class="btn sm" data-ok="' + o.ref + '">' +
+          '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>Mark paid</button>';
+      return '<div class="tr' + (exact ? ' hit' : '') + (o.st === 'paid' ? ' settled' : '') + '">' +
+        '<div class="refc">' + o.ref + '</div>' +
+        '<div><div class="cust">' + o.cust + '</div><div class="item">' + o.item + '</div>' +
+        '<div class="via">' + VIA[o.m][1] + VIA[o.m][0] + '</div></div>' +
+        '<div class="amtc">£' + o.amt.toFixed(2) + '</div>' +
+        '<div>' + pill + '</div>' +
+        '<div style="display:flex;justify-content:flex-end">' + act + '</div></div>';
+    }).join('');
+  }
+
+  document.addEventListener('click', function(e){
+    var ok = e.target.closest('[data-ok]'), un = e.target.closest('[data-undo]');
+    if (ok){
+      var o = orders.find(function(x){ return x.ref === ok.dataset.ok; });
+      o.st = 'paid';
+      RC.toast(o.ref + ' confirmed' + (o.m === 'cash' ? ' — pickup address sent' : ' — receipt sent'));
+      stats(); render();
+    }
+    if (un){
+      var u = orders.find(function(x){ return x.ref === un.dataset.undo; });
+      u.st = 'await'; u.hrs = u.hrs || 12;
+      RC.toast(u.ref + ' back to awaiting');
+      stats(); render();
+    }
+    var s = e.target.closest('#segs button');
+    if (s){
+      $$('#segs button').forEach(function(b){ b.classList.remove('on'); });
+      s.classList.add('on'); filter = s.dataset.f; render();
+    }
+  });
+
+  $('#q').addEventListener('input', function(e){ query = e.target.value; render(); });
+
+  stats(); render();
+})();
+</script>
+</body>
+</html>

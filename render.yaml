@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: ron-cartel
+    runtime: static
+    staticPublishPath: .
+    pullRequestPreviewsEnabled: false
+    headers:
+      - path: /assets/fonts/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+    routes:
+      - type: rewrite
+        source: /shop
+        destination: /index.html

@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Checkout — Ron Cartel</title>
+<meta name="description" content="Secure checkout for Ron Cartel performance parts.">
+<link rel="stylesheet" href="assets/app.css">
+<style>
+  .co{display:grid;grid-template-columns:minmax(0,1fr) 372px;gap:30px;
+      align-items:start;padding:30px 0 90px}
+  @media (max-width:980px){
+    .co{grid-template-columns:1fr;padding-top:20px;gap:22px}
+    .co .rail{position:static;order:-1}
+  }
+  .co-head{margin-bottom:22px}
+  .co-head .display{font-size:clamp(30px,4.4vw,46px)}
+  .addr{font-size:14px;color:var(--muted);line-height:1.7}
+  .addr strong{color:var(--text);font-weight:700;display:block;margin-bottom:2px}
+
+  /* confirmation */
+  .receipt{display:none;max-width:660px;margin:0 auto;padding:52px 0 100px}
+  .receipt.on{display:block}
+  .seal{width:96px;height:96px;margin:0 auto 24px;position:relative;display:grid;
+        place-items:center}
+  .seal svg.ring{position:absolute;inset:0;width:96px;height:96px;transform:rotate(-90deg)}
+  .seal svg.ring circle{fill:none;stroke-width:3;stroke-linecap:round}
+  .seal .bg{stroke:var(--surface-3)}
+  .seal .fg{stroke:url(#sealgrad);stroke-dasharray:283;stroke-dashoffset:283;
+            animation:draw 1.1s var(--ease-out) .15s forwards}
+  @keyframes draw{to{stroke-dashoffset:0}}
+  .seal .core{width:62px;height:62px;border-radius:50%;background:var(--hold-dim);
+              display:grid;place-items:center;color:var(--hold)}
+  .receipt-h{text-align:center;margin-bottom:28px}
+  .receipt-h .display{font-size:clamp(27px,3.7vw,38px);margin-bottom:9px}
+  .receipt-h p{color:var(--muted);margin:0;font-size:15px}
+  .plate.hero{padding:24px;text-align:center;margin-bottom:20px}
+  .plate.hero .pv{font-size:clamp(28px,5.4vw,40px);letter-spacing:.17em}
+  .plate.hero .copy{margin:16px auto 0}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-in">
+    <a class="logo" href="index.html">
+      <span class="glyph" aria-hidden="true"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M15 6a1 1 0 100-2 1 1 0 000 2zM12 17.5V14l-3-3 4-3 2 3h3"/></svg></span>
+      Ron Cartel
+    </a>
+    <nav class="nav">
+      <a href="index.html">Shop</a>
+      <a href="product.html">Wheels</a>
+      <a href="checkout.html" class="on">Checkout</a>
+    </nav>
+    <div class="topbar-r">
+      <span class="chip"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>Encrypted</span>
+    </div>
+  </div>
+</header>
+
+<div class="page">
+<main class="shell co" id="checkout">
+  <div>
+    <div class="co-head rv">
+      <div class="steps">
+        <span class="stp done"><span class="n" aria-hidden="true"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span>Address</span>
+        <span class="track"><i style="animation-delay:.1s"></i></span>
+        <span class="stp done"><span class="n" aria-hidden="true"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span>Delivery</span>
+        <span class="track"><i style="animation-delay:.3s"></i></span>
+        <span class="stp now"><span class="n">3</span>Payment</span>
+      </div>
+      <p class="eyebrow" style="margin:0 0 8px">Final step</p>
+      <h1 class="display">How you'd like <span class="lit">to pay</span></h1>
+    </div>
+
+    <!-- address -->
+    <section class="panel spot rv" style="margin-bottom:18px">
+      <div class="panel-h">
+        <span class="hico" aria-hidden="true"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0116 0z"/><circle cx="12" cy="10" r="3"/></svg></span>
+        <h3>Delivery address</h3>
+        <button class="link-btn" type="button">Change</button>
+      </div>
+      <div class="panel-b">
+        <p class="addr" style="margin:0"><strong>Jay Miller</strong>14 Everton Road<br>Manchester, M14 5TZ<br>United Kingdom · 07700 900184</p>
+      </div>
+    </section>
+
+    <!-- delivery -->
+    <section class="panel spot rv" style="margin-bottom:18px">
+      <div class="panel-h">
+        <span class="hico" aria-hidden="true"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 3v5h-7z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg></span>
+        <h3>How it gets to you</h3>
+      </div>
+      <div class="panel-b" id="ship" role="radiogroup" aria-label="Delivery method">
+
+        <label class="opt sel" data-ship="6.99" data-name="Royal Mail Tracked 24">
+          <input type="radio" name="ship" checked>
+          <span class="dot" aria-hidden="true"><i></i></span>
+          <span class="oico" aria-hidden="true"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2.5"/><path d="M2.5 8.5L12 14l9.5-5.5"/></svg></span>
+          <span class="otxt"><span class="t">Royal Mail Tracked 24 <span class="tag hot">Next day</span></span>
+          <span class="s">Order before 2pm — lands tomorrow, signed for</span></span>
+          <span class="oprice">£6.99</span>
+        </label>
+
+        <label class="opt" data-ship="9.99" data-name="DPD Next Day">
+          <input type="radio" name="ship">
+          <span class="dot" aria-hidden="true"><i></i></span>
+          <span class="oico" aria-hidden="true"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13" rx="1.5"/><path d="M16 8h4l3 3v5h-7z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg></span>
+          <span class="otxt"><span class="t">DPD Next Day <span class="tag">1hr slot</span></span>
+          <span class="s">Live tracking and a one-hour window</span></span>
+          <span class="oprice">£9.99</span>
+        </label>
+
+        <label class="opt" data-ship="3.49" data-name="Royal Mail Tracked 48">
+          <input type="radio" name="ship">
+          <span class="dot" aria-hidden="true"><i></i></span>
+          <span class="oico" aria-hidden="true"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2.5"/><path d="M2.5 8.5L12 14l9.5-5.5"/></svg></span>
+          <span class="otxt"><span class="t">Royal Mail Tracked 48</span>
+          <span class="s">Two to three working days</span></span>
+          <span class="oprice">£3.49</span>
+        </label>
+
+        <label class="opt" data-ship="0" data-name="Collection" data-collect="1">
+          <input type="radio" name="ship">
+          <span class="dot" aria-hidden="true"><i></i></span>
+          <span class="oico" aria-hidden="true"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l1.4-5h15.2L21 9"/><path d="M4.5 9v11h15V9"/><path d="M9.5 20v-6h5v6"/></svg></span>
+          <span class="otxt"><span class="t">Collect in person <span class="tag">Deposit</span></span>
+          <span class="s">Address goes out the moment payment clears</span></span>
+          <span class="oprice free">Free</span>
+        </label>
+      </div>
+    </section>
+
+    <!-- payment -->
+    <section class="panel spot rv">
+      <div class="panel-h">
+        <span class="hico" aria-hidden="true"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2.5"/><path d="M2 10h20"/></svg></span>
+        <h3>Payment method</h3>
+      </div>
+      <div class="panel-b" id="pay" role="radiogroup" aria-label="Payment method">
+
+        <label class="opt sel" data-pay="bank">
+          <input type="radio" name="pay" checked>
+          <span class="dot" aria-hidden="true"><i></i></span>
+          <span class="oico" aria-hidden="true"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><path d="M2.6 9.4L12 3.6l9.4 5.8"/><path d="M5 10.6V19M19 10.6V19M9.4 10.6V19M14.6 10.6V19"/><path d="M2.6 20.4h18.8"/></svg></span>
+          <span class="otxt"><span class="t">Bank transfer <span class="tag go">Instant</span></span>
+          <span class="s">Faster Payments — usually clears in seconds</span></span>
+        </label>
+        <div class="detail on" id="d-bank">
+          <h4>Send £<span class="dTotal num">0.00</span> to</h4>
+          <div class="rows">
+            <div class="row-f"><span class="k">Account name</span><span class="v" id="v-name">Ron Cartel Ltd</span><button class="copy" type="button" data-copy="#v-name">Copy</button></div>
+            <div class="row-f"><span class="k">Sort code</span><span class="v big" id="v-sort">04-00-75</span><button class="copy" type="button" data-copy="#v-sort">Copy</button></div>
+            <div class="row-f"><span class="k">Account number</span><span class="v big" id="v-acct">88213470</span><button class="copy" type="button" data-copy="#v-acct">Copy</button></div>
+          </div>
+          <div class="plate" style="margin-top:10px">
+            <div class="pk">Payment reference — required</div>
+            <div class="pv refOut">RC-000000</div>
+            <button class="copy" type="button" data-copy=".refOut" style="margin-top:12px">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2.5"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+              Copy reference
+            </button>
+          </div>
+          <div class="note warn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v5M12 16.5h.01"/></svg>
+            <span>Put the reference in your bank's payment reference box. It's how we match the money to this order — without it, nothing ships.</span>
+          </div>
+        </div>
+
+        <label class="opt" data-pay="ppff">
+          <input type="radio" name="pay">
+          <span class="dot" aria-hidden="true"><i></i></span>
+          <span class="oico" aria-hidden="true"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><path d="M6 20.2L8.3 6.4h5.4c2.7 0 4.2 1.5 3.8 3.9-.5 2.6-2.5 4.1-5.3 4.1H9.8L9 20.2z"/><path d="M10.7 14.9h2.1c2.8 0 4.8-1.5 5.2-4.1"/></svg></span>
+          <span class="otxt"><span class="t">PayPal — Friends &amp; Family</span>
+          <span class="s">Personal payment, checked by hand</span></span>
+        </label>
+        <div class="detail" id="d-ppff">
+          <h4>Send £<span class="dTotal num">0.00</span> as Friends &amp; Family</h4>
+          <div class="rows">
+            <div class="row-f"><span class="k">PayPal address</span><span class="v big" id="v-pp">pay@roncartel.co.uk</span><button class="copy" type="button" data-copy="#v-pp">Copy</button></div>
+          </div>
+          <div class="plate" style="margin-top:10px">
+            <div class="pk">Put this in the message field</div>
+            <div class="pv refOut">RC-000000</div>
+            <button class="copy" type="button" data-copy=".refOut" style="margin-top:12px">Copy reference</button>
+          </div>
+          <div class="note info">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4.5M12 8h.01"/></svg>
+            <span>We check these manually, so give it a little longer than a bank transfer.</span>
+          </div>
+          <div class="note stop">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/><path d="M12 9.5v4M12 17.5h.01"/></svg>
+            <span>Friends &amp; Family carries no PayPal buyer protection and can't be reversed. Choosing it means you accept that.</span>
+          </div>
+        </div>
+
+        <label class="opt hide" id="opt-cash" data-pay="cash">
+          <input type="radio" name="pay">
+          <span class="dot" aria-hidden="true"><i></i></span>
+          <span class="oico" aria-hidden="true"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2.5"/><circle cx="12" cy="12" r="2.6"/><path d="M5.5 12h.01M18.5 12h.01"/></svg></span>
+          <span class="otxt"><span class="t">Cash on collection</span>
+          <span class="s">Deposit now to reserve, balance in person</span></span>
+        </label>
+        <div class="detail" id="d-cash">
+          <h4>Deposit to reserve</h4>
+          <div class="rows">
+            <div class="row-f"><span class="k">Deposit now</span><span class="v big" id="v-dep">£50.00</span></div>
+            <div class="row-f"><span class="k">Balance on pickup</span><span class="v big" id="v-bal">£0.00</span></div>
+          </div>
+          <div class="plate" style="margin-top:10px">
+            <div class="pk">Payment reference</div>
+            <div class="pv refOut">RC-000000</div>
+          </div>
+          <div class="note info">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4.5M12 8h.01"/></svg>
+            <span>Once the deposit clears, your item flips to <strong>RESERVED</strong> and we send the pickup address and times.</span>
+          </div>
+        </div>
+
+      </div>
+    </section>
+  </div>
+
+  <!-- summary -->
+  <aside class="rail rv">
+    <div class="panel spot">
+      <div class="panel-h">
+        <span class="hico" aria-hidden="true"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><path d="M3 6h18M16 10a4 4 0 01-8 0"/></svg></span>
+        <h3>Your order</h3>
+      </div>
+      <div class="panel-b">
+        <div class="li">
+          <span class="li-thumb" aria-hidden="true"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="12" cy="12" r="9.2"/><circle cx="12" cy="12" r="6.4"/><circle cx="12" cy="12" r="2.4"/><path d="M12 2.8v3M12 18.2v3M2.8 12h3M18.2 12h3M5.5 5.5l2.1 2.1M16.4 16.4l2.1 2.1M18.5 5.5l-2.1 2.1M7.6 16.4l-2.1 2.1"/></svg></span>
+          <div>
+            <div class="li-t">19&quot; Supermoto Front Wheel</div>
+            <div class="li-s">Black anodised · Qty 1</div>
+          </div>
+          <div class="li-p">£285.00</div>
+        </div>
+        <div class="sum-row"><span>Subtotal</span><b>£285.00</b></div>
+        <div class="sum-row"><span>Delivery <em id="shipName" style="font-style:normal;color:var(--ghost)">Royal Mail 24</em></span><b id="shipVal">£6.99</b></div>
+        <div class="sum-total">
+          <span class="lbl" id="totalLabel">Total</span>
+          <span class="amt"><span aria-hidden="true">£</span><span id="grand" class="num">291.99</span></span>
+        </div>
+
+        <button class="btn wide" id="place" type="button" style="margin-top:17px">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2.5"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+          <span id="placeTxt">Place order</span>
+        </button>
+
+        <div class="trust">
+          <div><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>Stock held 24 hours while you pay</div>
+          <div><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>Tracked and signed-for dispatch</div>
+          <div><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>UK support, seven days a week</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+</main>
+
+<!-- confirmation -->
+<section class="shell receipt" id="done" aria-live="polite">
+  <div class="receipt-h">
+    <div class="seal">
+      <svg class="ring" viewBox="0 0 100 100" aria-hidden="true">
+        <defs><linearGradient id="sealgrad" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#FF5A1F"/><stop offset="1" stop-color="#FFB562"/>
+        </linearGradient></defs>
+        <circle class="bg" cx="50" cy="50" r="45"/>
+        <circle class="fg" cx="50" cy="50" r="45"/>
+      </svg>
+      <span class="core" aria-hidden="true"><svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5"/><path d="M12 6.5V12l3.6 1.8"/></svg></span>
+    </div>
+    <p class="eyebrow" style="margin:0 0 9px">Order received</p>
+    <h1 class="display">Awaiting <span class="lit">payment</span></h1>
+    <p>Your parts are held. Send the money with the reference below and we'll confirm by email.</p>
+  </div>
+
+  <div class="plate hero">
+    <div class="pk">Your payment reference</div>
+    <div class="pv refOut">RC-000000</div>
+    <button class="copy" type="button" data-copy=".refOut">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2.5"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+      Copy reference
+    </button>
+  </div>
+
+  <div class="panel spot">
+    <div class="panel-h"><h3 id="doneTitle">Bank transfer details</h3></div>
+    <div class="panel-b">
+      <div class="rows" id="doneRows"></div>
+      <div class="note warn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v5M12 16.5h.01"/></svg>
+        <span>Stock is held for <strong>24 hours</strong>. If the payment hasn't landed by then the order releases automatically.</span>
+      </div>
+    </div>
+  </div>
+
+  <p style="text-align:center;margin-top:24px">
+    <button class="btn ghost sm" type="button" onclick="location.reload()">← Back to checkout</button>
+  </p>
+</section>
+</div>
+
+<script src="assets/app.js"></script>
+<script>
+(function(){
+  var SUBTOTAL = 285.00, DEPOSIT = 50.00;
+  var $ = RC.$, $$ = RC.$$, money = RC.money;
+  var ref = RC.makeRef();
+  $$('.refOut').forEach(function(el){ RC.etch(el, ref); });
+
+  var ship = 6.99, shipName = 'Royal Mail 24', collect = false, pay = 'bank';
+
+  function total(){ return collect ? DEPOSIT : SUBTOTAL + ship; }
+
+  function recalc(){
+    $('#shipVal').textContent = collect ? 'Free' : '£' + money(ship);
+    $('#shipName').textContent = collect ? 'Collection' : shipName;
+    RC.countTo($('#grand'), total(), '');
+    $$('.dTotal').forEach(function(e){ e.textContent = money(total()); });
+    $('#v-dep').textContent = '£' + money(DEPOSIT);
+    $('#v-bal').textContent = '£' + money(SUBTOTAL - DEPOSIT);
+    $('#totalLabel').textContent = collect ? 'Deposit due' : 'Total';
+    $('#placeTxt').textContent = collect ? 'Pay deposit & reserve' : 'Place order';
+  }
+
+  $$('#ship .opt').forEach(function(o){
+    o.addEventListener('click', function(){
+      $$('#ship .opt').forEach(function(x){ x.classList.remove('sel'); });
+      o.classList.add('sel');
+      ship = parseFloat(o.dataset.ship);
+      shipName = o.dataset.name;
+      collect = o.dataset.collect === '1';
+      $('#opt-cash').classList.toggle('hide', !collect);
+      if(!collect && pay === 'cash') pick($('[data-pay="bank"]'));
+      recalc();
+    });
+  });
+
+  function pick(o){
+    $$('#pay .opt').forEach(function(x){ x.classList.remove('sel'); });
+    $$('.detail').forEach(function(d){ d.classList.remove('on'); });
+    o.classList.add('sel');
+    o.querySelector('input').checked = true;
+    pay = o.dataset.pay;
+    $('#d-' + pay).classList.add('on');
+  }
+  $$('#pay .opt').forEach(function(o){
+    o.addEventListener('click', function(){ pick(o); });
+  });
+
+  $('#place').addEventListener('click', function(){
+    var rows;
+    if(pay === 'ppff'){
+      $('#doneTitle').textContent = 'PayPal Friends & Family';
+      rows = [['Amount','£' + money(total())],['PayPal address','pay@roncartel.co.uk'],
+              ['Message field', ref]];
+    } else {
+      $('#doneTitle').textContent = collect ? 'Deposit payment details' : 'Bank transfer details';
+      rows = [['Amount','£' + money(total())],['Account name','Ron Cartel Ltd'],
+              ['Sort code','04-00-75'],['Account number','88213470'],['Reference', ref]];
+    }
+    $('#doneRows').innerHTML = rows.map(function(r){
+      return '<div class="row-f"><span class="k">' + r[0] +
+             '</span><span class="v big">' + r[1] + '</span></div>';
+    }).join('');
+    $('#checkout').style.display = 'none';
+    $('#done').classList.add('on');
+    $$('#done .refOut').forEach(function(el){ RC.etch(el, ref); });
+    window.scrollTo({top:0, behavior: RC.reduced ? 'auto' : 'smooth'});
+  });
+
+  recalc();
+})();
+</script>
+</body>
+</html>

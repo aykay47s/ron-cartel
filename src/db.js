@@ -98,6 +98,47 @@ const MIGRATIONS = [
      created_at timestamptz not null default now(),
      paid_at timestamptz
    )`,
+  /* --- customer accounts, so buyers can track their own orders --- */
+  `create table if not exists customers (
+     id serial primary key,
+     email text unique not null,
+     pass_hash text not null,
+     name text not null default '',
+     phone text not null default '',
+     address text not null default '',
+     created_at timestamptz not null default now()
+   )`,
+  `create table if not exists customer_sessions (
+     token text primary key,
+     customer_id int not null references customers(id) on delete cascade,
+     expires_at timestamptz not null,
+     created_at timestamptz not null default now()
+   )`,
+  `alter table orders add column if not exists customer_id int references customers(id) on delete set null`,
+  `alter table orders add column if not exists tracking_carrier text not null default ''`,
+  `alter table orders add column if not exists tracking_number text not null default ''`,
+  `alter table orders add column if not exists dispatched_at timestamptz`,
+  `alter table orders add column if not exists note text not null default ''`,
+
+  /* --- buyer-uploaded proof of payment --- */
+  `create table if not exists payment_proofs (
+     id serial primary key,
+     order_id int not null references orders(id) on delete cascade,
+     image_id int references images(id) on delete set null,
+     note text not null default '',
+     created_at timestamptz not null default now()
+   )`,
+
+  /* --- a written history the customer can actually follow --- */
+  `create table if not exists order_events (
+     id serial primary key,
+     order_id int not null references orders(id) on delete cascade,
+     label text not null,
+     detail text not null default '',
+     created_at timestamptz not null default now()
+   )`,
+  `create index if not exists order_events_idx on order_events (order_id, created_at)`,
+  `create index if not exists orders_customer_idx on orders (customer_id, created_at desc)`,
   `create index if not exists orders_status_idx on orders (status, created_at desc)`,
   `create index if not exists products_pos_idx on products (position, id)`,
 ];
@@ -114,6 +155,13 @@ const DEFAULT_SETTINGS = {
   collection_note: 'The pickup address is sent once your payment clears.',
   hold_hours: '24',
   contact_email: '',
+  /* Outbound email. Filled in from Settings — never committed. */
+  smtp_host: '',
+  smtp_port: '587',
+  smtp_user: '',
+  smtp_pass: '',
+  smtp_from: '',
+  emails_on: '',
 };
 
 const DEFAULT_DELIVERY = [

@@ -130,3 +130,65 @@ setInterval(() => {
   const now = Date.now();
   for (const [k, v] of attempts) if (now > v.reset) attempts.delete(k);
 }, 60_000).unref?.();
+
+/* ============================================================
+   CUSTOMER ACCOUNTS — separate cookie, separate table, no admin rights
+   ============================================================ */
+const C_COOKIE = 'rc_cust';
+
+export async function createCustomer({ email, password, name, phone, address }) {
+  const hash = await hashPassword(password);
+  return one(
+    `insert into customers (email, pass_hash, name, phone, address)
+     values (lower($1),$2,$3,$4,$5) returning id, email, name`,
+    [String(email).trim(), hash, name || '', phone || '', address || '']
+  );
+}
+
+export async function customerByEmail(email) {
+  return one('select * from customers where email = lower($1)', [String(email).trim()]);
+}
+
+export async function customerLogin(email, password) {
+  const cust = await customerByEmail(email);
+  if (!cust) return null;
+  if (!(await verifyPassword(password, cust.pass_hash))) return null;
+  const token = randomBytes(32).toString('hex');
+  const expires = new Date(Date.now() + 30 * 864e5);
+  await q('insert into customer_sessions (token, customer_id, expires_at) values ($1,$2,$3)',
+          [token, cust.id, expires]);
+  return { token, expires, customer: cust };
+}
+
+export async function customerFrom(token) {
+  if (!token) return null;
+  return one(
+    `select c.id, c.email, c.name, c.phone, c.address
+       from customer_sessions s join customers c on c.id = s.customer_id
+      where s.token = $1 and s.expires_at > now()`,
+    [token]
+  );
+}
+
+export const customerLogout = (token) => q('delete from customer_sessions where token = $1', [token]);
+
+export const readCustomerCookie = (c) => readCookie(c, C_COOKIE);
+
+export function setCustomerCookie(c, token, expires) {
+  const secure = (process.env.NODE_ENV === 'production') ? '; Secure' : '';
+  c.header('Set-Cookie',
+    `${C_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax` +
+    `${secure}; Expires=${expires.toUTCString()}`);
+}
+
+export function clearCustomerCookie(c) {
+  const secure = (process.env.NODE_ENV === 'production') ? '; Secure' : '';
+  c.header('Set-Cookie', `${C_COOKIE}=; Path=/; HttpOnly; SameSite=Lax${secure}; Max-Age=0`);
+}
+
+export async function requireCustomer(c, next) {
+  const cust = await customerFrom(readCustomerCookie(c));
+  if (!cust) return c.redirect('/signin?next=' + encodeURIComponent(c.req.path));
+  c.set('customer', cust);
+  await next();
+}

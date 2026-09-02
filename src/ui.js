@@ -26,6 +26,10 @@ export const icon = {
   bank: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.6 9.4L12 3.6l9.4 5.8"/><path d="M5 10.6V19M19 10.6V19M12 10.6V19"/><path d="M2.6 20.4h18.8"/></svg>',
   cog: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 00.3 1.9l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-2.9 1.2v.2a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.6 1.7 1.7 0 00-1.9.4l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00-1.2-2.9H3a2 2 0 110-4h.1a1.7 1.7 0 001.6-1.1 1.7 1.7 0 00-.4-1.9l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.9.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.9-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.9V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/></svg>',
   box: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8l-9-5-9 5v8l9 5z"/><path d="M3.3 7.5L12 12.5l8.7-5M12 22V12.5"/></svg>',
+  clock: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5"/><path d="M12 6.5V12l3.6 1.8"/></svg>',
+  truck: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13" rx="1.5"/><path d="M16 8h4l3 3v5h-7z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>',
+  camera: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h3.5L8 5h8l1.5 2H21v13H3z"/><circle cx="12" cy="13" r="3.6"/></svg>',
+  mail: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2.5"/><path d="M2.5 7.5L12 13l9.5-5.5"/></svg>',
   out: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5M21 12H9"/></svg>',
 };
 
@@ -47,16 +51,18 @@ export function productArt(p) {
     : bikePhoto();
 }
 
-function nav(active, isAdmin) {
+function nav(active, isAdmin, isCustomer) {
   const link = (href, label, key) =>
     `<a href="${href}"${active === key ? ' class="on"' : ''}>${label}</a>`;
   return `<nav class="nav">
     ${link('/', 'Shop', 'shop')}
+    ${link('/track', 'Track order', 'track')}
+    ${isCustomer ? link('/account', 'My orders', 'account') : ''}
     ${isAdmin ? link('/admin', 'Admin', 'admin') : ''}
   </nav>`;
 }
 
-export function layout({ title, body, active = '', admin = null, head = '', wide = false }) {
+export function layout({ title, body, active = '', admin = null, customer = null, head = '', wide = false }) {
   return `<!doctype html>
 <html lang="en-GB">
 <head>
@@ -73,12 +79,15 @@ ${head}
       <span class="glyph" aria-hidden="true"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M15 6a1 1 0 100-2 1 1 0 000 2zM12 17.5V14l-3-3 4-3 2 3h3"/></svg></span>
       Ron Cartel
     </a>
-    ${nav(active, !!admin)}
+    ${nav(active, !!admin, !!customer)}
     <div class="topbar-r">
       ${admin
-        ? `<span class="chip" style="padding-left:5px"><span style="width:24px;height:24px;border-radius:50%;background:var(--grad-volt);color:#04121F;display:grid;place-items:center;font-size:10px;font-weight:900">${esc((admin.email || '?')[0].toUpperCase())}</span>${esc(admin.email)}</span>
+        ? `<span class="chip" style="padding-left:5px"><span class="av">${esc((admin.email || '?')[0].toUpperCase())}</span>Owner</span>
            <form method="post" action="/admin/logout" style="display:inline"><button class="chip" type="submit" style="cursor:pointer">${icon.out}</button></form>`
-        : `<span class="chip"><span class="live" aria-hidden="true"></span>Dispatching today</span>`}
+        : customer
+          ? `<a class="chip" href="/account" style="padding-left:5px"><span class="av">${esc((customer.name || customer.email || '?')[0].toUpperCase())}</span>${esc((customer.name || customer.email).split(' ')[0])}</a>
+             <form method="post" action="/signout" style="display:inline"><button class="chip" type="submit" style="cursor:pointer">${icon.out}</button></form>`
+          : `<a class="chip" href="/signin">Sign in</a>`}
     </div>
   </div>
 </header>

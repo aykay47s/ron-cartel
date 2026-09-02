@@ -4,10 +4,11 @@ import { join, extname, normalize } from 'node:path';
 import { serve } from '@hono/node-server';
 import { Hono } from 'hono';
 import { migrate, pool } from './db.js';
-import { sessionFrom, readCookie, seedOwner } from './auth.js';
+import { sessionFrom, readCookie, seedOwner, customerFrom, readCustomerCookie } from './auth.js';
 import { publicRoutes } from './routes-public.js';
 import { checkoutRoutes } from './routes-checkout.js';
 import { adminRoutes } from './routes-admin.js';
+import { customerRoutes } from './routes-customer.js';
 import { layout, icon } from './ui.js';
 
 const app = new Hono();
@@ -35,6 +36,8 @@ app.use('*', async (c, next) => {
 app.use('*', async (c, next) => {
   const sess = await sessionFrom(readCookie(c)).catch(() => null);
   if (sess) c.set('admin', sess);
+  const cust = await customerFrom(readCustomerCookie(c)).catch(() => null);
+  if (cust) c.set('customer', cust);
   await next();
 });
 
@@ -54,6 +57,7 @@ app.get('/assets/*', async (c) => {
 app.get('/healthz', (c) => c.text('ok'));
 
 app.route('/', adminRoutes);
+app.route('/', customerRoutes);
 app.route('/', checkoutRoutes);
 app.route('/', publicRoutes);
 

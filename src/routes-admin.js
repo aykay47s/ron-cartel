@@ -5,6 +5,7 @@ import {
   readCookie, setCookie, clearCookie, throttle,
 } from './auth.js';
 import { layout, esc, money, pence, icon, productArt, flash, STATUS_LABEL } from './ui.js';
+import { sendMailSafe, templates } from './mail.js';
 
 export const adminRoutes = new Hono();
 
@@ -86,7 +87,7 @@ adminRoutes.get('/admin', async (c) => {
     const paid = o.status === 'paid';
     const hit = search && o.ref.toLowerCase() === search.toLowerCase();
     return `<div class="tr${hit ? ' hit' : ''}${paid ? ' settled' : ''}">
-      <div class="refc">${esc(o.ref)}</div>
+      <div class="refc"><a href="/admin/orders/${esc(o.ref)}" style="color:inherit">${esc(o.ref)}</a></div>
       <div><div class="cust">${esc(o.cust_name || '—')}</div>
         <div class="item">${esc(o.product_name)} × ${o.qty}</div>
         <div class="via">${o.method === 'ppff' ? 'PayPal F&amp;F' : 'Bank transfer'}${o.is_deposit ? ' · deposit' : ''}</div></div>
@@ -127,13 +128,134 @@ adminRoutes.get('/admin', async (c) => {
 });
 
 adminRoutes.post('/admin/orders/:ref/paid', async (c) => {
-  await q(`update orders set status='paid', paid_at=now() where ref=$1 and status<>'paid'`,
-          [c.req.param('ref')]);
+  const o = await one(
+    `update orders set status='paid', paid_at=now()
+      where ref=$1 and status<>'paid' returning *`, [c.req.param('ref')]);
+  if (o) {
+    await q('insert into order_events (order_id, label, detail) values ($1,$2,$3)',
+            [o.id, o.is_deposit ? 'Deposit received' : 'Payment received', '£' + money(o.total_p)]);
+    if (o.cust_email) {
+      const s = await getSettings();
+      sendMailSafe({ to: o.cust_email, ...templates.paymentConfirmed(o, s) });
+    }
+  }
+  return c.redirect(c.req.header('referer')?.includes('/admin/orders/') ? `/admin/orders/${c.req.param('ref')}` : '/admin');
+});
+
+adminRoutes.post('/admin/orders/:ref/unpaid', async (c) => {
+  const o = await one(
+    `update orders set status='awaiting', paid_at=null where ref=$1 returning *`,
+    [c.req.param('ref')]);
+  if (o) await q('insert into order_events (order_id, label, detail) values ($1,$2,$3)',
+                 [o.id, 'Payment un-marked', 'Set back to awaiting by the shop']);
   return c.redirect('/admin');
 });
-adminRoutes.post('/admin/orders/:ref/unpaid', async (c) => {
-  await q(`update orders set status='awaiting', paid_at=null where ref=$1`, [c.req.param('ref')]);
-  return c.redirect('/admin');
+
+adminRoutes.post('/admin/orders/:ref/dispatch', async (c) => {
+  const f = await c.req.parseBody();
+  const o = await one(
+    `update orders set tracking_carrier=$1, tracking_number=$2, dispatched_at=now()
+      where ref=$3 returning *`,
+    [String(f.carrier || '').slice(0, 60), String(f.tracking || '').slice(0, 80),
+     c.req.param('ref')]);
+  if (o) {
+    await q('insert into order_events (order_id, label, detail) values ($1,$2,$3)',
+            [o.id, 'Dispatched',
+             [o.tracking_carrier, o.tracking_number].filter(Boolean).join(' · ')]);
+    if (o.cust_email) {
+      const s = await getSettings();
+      sendMailSafe({ to: o.cust_email, ...templates.dispatched(o, s) });
+    }
+  }
+  return c.redirect(`/admin/orders/${c.req.param('ref')}`);
+});
+
+/* ---------------- one order ---------------- */
+adminRoutes.get('/admin/orders/:ref', async (c) => {
+  const o = await one('select * from orders where ref = $1', [c.req.param('ref').toUpperCase()]);
+  if (!o) return c.notFound();
+  const proofs = await many(
+    'select * from payment_proofs where order_id = $1 order by created_at desc', [o.id]);
+  const events = await many(
+    'select * from order_events where order_id = $1 order by created_at', [o.id]);
+  const when = (d) => new Date(d).toLocaleString('en-GB',
+    { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  const paid = o.status === 'paid';
+
+  const body = adminShell('orders', `
+    <p style="margin:-8px 0 18px"><a class="link-btn" href="/admin">← All orders</a></p>
+    <div class="cols2">
+      <div>
+        <section class="panel spot" style="margin-bottom:18px">
+          <div class="panel-h"><span class="hico" aria-hidden="true">${icon.bag}</span>
+            <h3>${esc(o.ref)}</h3>
+            <span style="margin-left:auto">${paid
+              ? '<span class="pill paid"><i></i>Confirmed</span>'
+              : '<span class="pill await"><i></i>Awaiting</span>'}</span></div>
+          <div class="panel-b"><div class="rows">
+            <div class="row-f"><span class="k">Item</span><span class="v">${esc(o.product_name)} × ${o.qty}</span></div>
+            <div class="row-f"><span class="k">${o.is_deposit ? 'Deposit' : 'Total'}</span><span class="v big">£${money(o.total_p)}</span></div>
+            <div class="row-f"><span class="k">Method</span><span class="v">${o.method === 'ppff' ? 'PayPal F&amp;F' : 'Bank transfer'}</span></div>
+            <div class="row-f"><span class="k">Delivery</span><span class="v">${esc(o.delivery_label || '—')}</span></div>
+            <div class="row-f"><span class="k">Name</span><span class="v">${esc(o.cust_name || '—')}</span></div>
+            <div class="row-f"><span class="k">Email</span><span class="v">${esc(o.cust_email || '—')}</span></div>
+            <div class="row-f"><span class="k">Phone</span><span class="v">${esc(o.cust_phone || '—')}</span></div>
+            <div class="row-f"><span class="k">Address</span><span class="v">${esc(o.address || '—')}</span></div>
+          </div>
+          <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap">
+            <form method="post" action="/admin/orders/${esc(o.ref)}/${paid ? 'unpaid' : 'paid'}">
+              <button class="btn ${paid ? 'ghost ' : ''}sm" type="submit">${paid ? 'Un-mark paid' : icon.tick + ' Mark paid'}</button>
+            </form>
+            <a class="btn ghost sm" href="/order/${esc(o.ref)}" target="_blank" rel="noopener">See what the buyer sees</a>
+          </div></div>
+        </section>
+
+        <section class="panel spot">
+          <div class="panel-h"><span class="hico" aria-hidden="true">${icon.truck}</span><h3>Dispatch</h3></div>
+          <div class="panel-b">
+            ${o.dispatched_at ? `<div class="note info" style="margin:0 0 14px">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>
+              <span>Dispatched ${when(o.dispatched_at)}. Saving again re-sends the email.</span></div>` : ''}
+            <form method="post" action="/admin/orders/${esc(o.ref)}/dispatch">
+              <div class="grid2">
+                <div class="field"><label for="ca">Carrier</label>
+                  <input id="ca" name="carrier" value="${esc(o.tracking_carrier)}" maxlength="60" placeholder="Royal Mail"></div>
+                <div class="field"><label for="tn">Tracking number</label>
+                  <input id="tn" name="tracking" value="${esc(o.tracking_number)}" maxlength="80"></div>
+              </div>
+              <button class="btn" type="submit">${icon.truck} Mark dispatched &amp; email them</button>
+            </form>
+          </div>
+        </section>
+      </div>
+
+      <div>
+        <section class="panel spot" style="margin-bottom:18px">
+          <div class="panel-h"><span class="hico" aria-hidden="true">${icon.camera}</span><h3>Proof of payment</h3>
+            <span class="tag" style="margin-left:auto">${proofs.length}</span></div>
+          <div class="panel-b">
+            ${proofs.length ? `<div class="proofs">${proofs.map((pr) => `
+              <a class="proof" href="/img/${pr.image_id}" target="_blank" rel="noopener">
+                <img src="/img/${pr.image_id}" alt="Proof">
+                <span>${when(pr.created_at)}${pr.note ? ' · ' + esc(pr.note) : ''}</span></a>`).join('')}</div>`
+              : '<p style="margin:0;color:var(--muted);font-size:13.5px">Nothing uploaded yet.</p>'}
+          </div>
+        </section>
+
+        <section class="panel spot">
+          <div class="panel-h"><span class="hico" aria-hidden="true">${icon.clock}</span><h3>History</h3></div>
+          <div class="panel-b">
+            ${events.length ? `<div class="hist">${events.map((e) =>
+              `<div class="ev"><span class="tm">${when(e.created_at)}</span>
+               <span class="lb">${esc(e.label)}</span>
+               ${e.detail ? `<span class="dt">${esc(e.detail)}</span>` : ''}</div>`).join('')}</div>`
+              : '<p style="margin:0;color:var(--muted);font-size:13.5px">Nothing yet.</p>'}
+          </div>
+        </section>
+      </div>
+    </div>`);
+
+  return c.html(layout({ title: `Order ${o.ref} — Admin`, body, active: 'admin', admin: c.get('admin') }));
 });
 
 /* ---------------- products ---------------- */
@@ -291,6 +413,31 @@ adminRoutes.get('/admin/settings', async (c) => {
       </section>
 
       <section class="panel spot" style="margin-top:18px">
+        <div class="panel-h"><span class="hico" aria-hidden="true">${icon.mail}</span><h3>Order emails</h3></div>
+        <div class="panel-b">
+          <label style="display:flex;gap:9px;align-items:center;margin-bottom:16px;font-size:13.5px">
+            <input type="checkbox" name="emails_on" ${s.emails_on ? 'checked' : ''} style="width:auto;min-height:auto">
+            Send order emails to customers</label>
+          <div class="grid2">
+            <div class="field"><label for="sh">SMTP host</label>
+              <input id="sh" name="smtp_host" value="${esc(s.smtp_host)}" placeholder="smtp-relay.brevo.com"></div>
+            <div class="field"><label for="sp">Port</label>
+              <input id="sp" name="smtp_port" value="${esc(s.smtp_port)}" inputmode="numeric" placeholder="587"></div>
+          </div>
+          <div class="grid2">
+            <div class="field"><label for="su">SMTP username</label>
+              <input id="su" name="smtp_user" value="${esc(s.smtp_user)}" autocomplete="off"></div>
+            <div class="field"><label for="sw">SMTP password / API key</label>
+              <input id="sw" name="smtp_pass" type="password" value="${esc(s.smtp_pass)}" autocomplete="off"></div>
+          </div>
+          <div class="field"><label for="sf">Send from</label>
+            <input id="sf" name="smtp_from" value="${esc(s.smtp_from)}" placeholder="orders@yourdomain.co.uk">
+            <div class="hint">Brevo gives 300 emails a day free. Without your own domain, verify a personal
+              address with them and use that — it works, it just looks less official.</div></div>
+        </div>
+      </section>
+
+      <section class="panel spot" style="margin-top:18px">
         <div class="panel-h"><span class="hico" aria-hidden="true"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 3v5h-7z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg></span><h3>Delivery options</h3></div>
         <div class="panel-b">
           ${opts.map((o) => `
@@ -339,6 +486,9 @@ adminRoutes.post('/admin/settings', async (c) => {
     paypal_address: f.paypal_address, paypal_note: f.paypal_note,
     collection_note: f.collection_note,
     hold_hours: String(parseInt(f.hold_hours, 10) || 24),
+    smtp_host: f.smtp_host, smtp_port: f.smtp_port,
+    smtp_user: f.smtp_user, smtp_pass: f.smtp_pass, smtp_from: f.smtp_from,
+    emails_on: f.emails_on != null ? '1' : '',
   });
   /* Only touch a delivery option if this submission actually carried its
      fields. Without that check, saving the settings form from anywhere that

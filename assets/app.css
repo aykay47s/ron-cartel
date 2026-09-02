@@ -633,3 +633,51 @@ footer.f{border-top:1px solid var(--edge-2);padding:30px 0 46px;color:var(--fain
 }
 input[type=file]{padding:11px 12px;font-size:13.5px}
 input[type=checkbox]{accent-color:var(--volt)}
+
+/* ============================================================
+   ACCOUNTS · TRACKING · PROOF
+   ============================================================ */
+.av{width:24px;height:24px;border-radius:50%;background:var(--grad-volt);color:#04121F;
+    display:grid;place-items:center;font-size:10px;font-weight:900;flex:none}
+
+/* order list on the account page */
+.ordlist{display:grid;gap:10px}
+.ord{display:grid;grid-template-columns:132px minmax(0,1fr) 96px auto;gap:14px;
+     align-items:center;padding:14px;border-radius:var(--r);border:1px solid var(--edge);
+     background:var(--surface-2);transition:.18s var(--ease)}
+.ord:hover{border-color:var(--volt-line);transform:translateY(-1px)}
+@media (max-width:640px){.ord{grid-template-columns:1fr auto;gap:8px}}
+
+/* the four-stage progress rail */
+.track{list-style:none;margin:0;padding:0;display:grid;gap:0}
+.track li{display:flex;gap:14px;align-items:flex-start;position:relative;padding:0 0 22px}
+.track li:last-child{padding-bottom:0}
+.track li::before{content:'';position:absolute;left:13px;top:28px;bottom:0;width:2px;
+  background:var(--surface-3)}
+.track li:last-child::before{display:none}
+.track li.on::before{background:var(--go)}
+.track .dotr{width:28px;height:28px;border-radius:50%;flex:none;display:grid;place-items:center;
+  background:var(--surface-2);border:1.5px solid var(--edge);color:var(--faint);
+  font-family:var(--mono);font-size:12px;font-weight:700;position:relative;z-index:1}
+.track li.on .dotr{background:var(--go-dim);border-color:rgba(52,211,153,.45);color:var(--go)}
+.track .lb{font-weight:700;font-size:14px;letter-spacing:-.012em}
+.track li.on .lb{color:var(--text)}
+.track li:not(.on) .lb{color:var(--faint)}
+.track .tm{font-family:var(--mono);font-size:11.5px;color:var(--faint);margin-top:2px}
+
+/* uploaded proof thumbnails */
+.proofs{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;
+        margin-bottom:16px}
+.proof{display:block;border-radius:var(--r-sm);overflow:hidden;border:1px solid var(--edge);
+       background:var(--surface-2);transition:.18s var(--ease)}
+.proof:hover{border-color:var(--volt-line);transform:translateY(-2px)}
+.proof img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block}
+.proof span{display:block;padding:7px 9px;font-size:11px;color:var(--muted);
+            font-family:var(--mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* written history */
+.hist{margin-top:16px;padding-top:14px;border-top:1px solid var(--edge-2);display:grid;gap:9px}
+.ev{display:flex;gap:11px;align-items:baseline;flex-wrap:wrap;font-size:13px}
+.ev .tm{font-family:var(--mono);font-size:11.5px;color:var(--ghost);min-width:96px}
+.ev .lb{font-weight:700}
+.ev .dt{color:var(--muted);font-size:12.5px}

@@ -115,13 +115,22 @@ sudo -u postgres psql -tAc "select 1 from pg_database where datname='$DB_NAME'" 
 
 # ---------- app ----------
 say "Fetching the app"
+# The app directory is owned by the roncartel service user, so git run as root
+# calls it "dubious ownership" and refuses. Without this the update silently
+# does nothing and the installer still reports success.
+git config --global --add safe.directory "$APP_DIR" 2>/dev/null || true
 if [ -d "$APP_DIR/.git" ]; then
-  git -C "$APP_DIR" fetch --depth 1 origin main -q && git -C "$APP_DIR" reset --hard origin/main -q
+  git -C "$APP_DIR" fetch --depth 1 origin main -q \
+    || die "Could not fetch from $REPO. Check the server has network access to github.com."
+  git -C "$APP_DIR" reset --hard origin/main -q \
+    || die "Could not check out origin/main in $APP_DIR."
 else
   rm -rf "$APP_DIR"
   git clone --depth 1 -q "$REPO" "$APP_DIR" \
     || die "Could not clone $REPO — if the repo is private, make it public or pass REPO=https://TOKEN@github.com/..."
 fi
+DEPLOYED="$(git -C "$APP_DIR" log --oneline -1 2>/dev/null || echo unknown)"
+say "Now on: $DEPLOYED"
 
 say "Installing dependencies"
 cd "$APP_DIR"

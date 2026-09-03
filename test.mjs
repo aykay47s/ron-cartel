@@ -246,6 +246,67 @@ if (pm) {
   ok('history recorded the steps', r.text.includes('Order placed') && r.text.includes('Payment received'));
 }
 
+head('trust pages');
+jar = {};
+for (const [path, needle] of [['/terms','Consumer Rights Act'], ['/returns','change your mind'],
+                              ['/privacy','UK GDPR'], ['/contact','Contact']]) {
+  const rr = await go(path);
+  ok(`${path} loads and reads right`, rr.status === 200 && rr.text.includes(needle),
+     'status ' + rr.status);
+}
+r = await go('/terms');
+ok('terms warn about Friends & Family losing protection',
+   r.text.includes('buyer protection') && r.text.includes('cannot be reversed'));
+r = await go('/returns');
+ok('returns names the made-to-order exception', r.text.includes('made-to-order'));
+r = await go('/');
+ok('footer links to the legal pages',
+   r.text.includes('/returns') && r.text.includes('/privacy') && r.text.includes('/terms'));
+ok('footer does not invent a trading name it has not been given',
+   !r.text.includes('Ron Cartel Ltd'));
+
+head('business details flow through');
+await go('/admin/login', form({ pin: '778899' }));
+r = await go('/admin/settings', form({
+  shop_name:'Ron Cartel', tagline:'x', contact_email:'jay@roncartel.co.uk',
+  bank_account_name:'Ron Cartel Ltd', bank_sort:'04-00-75', bank_number:'88213470',
+  paypal_address:'pay@roncartel.co.uk', paypal_note:'', collection_note:'x', hold_hours:'24',
+  legal_name:'Ron Cartel Ltd', trading_address:'14 Trafford Park, Manchester M17 1AB',
+  contact_phone:'07700900184', company_number:'12345678', vat_number:'',
+  site_url:'https://roncartel.co.uk', returns_days:'14', returns_note:'',
+  d_label_1:'Royal Mail Tracked 24', d_note_1:'', d_price_1:'6.99', d_on_1:'on',
+}));
+ok('business details saved', r.loc?.includes('ok=1'), r.loc);
+jar = {};
+r = await go('/contact');
+ok('contact shows the trading address', r.text.includes('Trafford Park'));
+r = await go('/');
+ok('footer shows the real business now', r.text.includes('Ron Cartel Ltd') && !r.text.includes('not set yet'));
+r = await go('/terms');
+ok('terms identify the trader', r.text.includes('Trafford Park'));
+
+head('payment methods');
+jar = {};
+{
+  const rr = await go('/');
+  const pmm = rr.text.match(/href="\/p\/(\d+)"/);
+  if (pmm) {
+    const co = await go('/checkout?id=' + pmm[1]);
+    ok('manual transfer offered when bank details are set', co.text.includes('data-pay="bank"'));
+    ok('PayPal offered when an address is set', co.text.includes('data-pay="ppff"'));
+    ok('pay by bank hidden while unconfigured', !co.text.includes('data-pay="bankpay"'));
+    ok('F&F still warns about lost protection', co.text.includes('No PayPal buyer protection'));
+    const ship3 = co.text.match(/data-ship="(\d+)"[^>]*data-price="\d+"[^>]*data-collect="0"/);
+    const bad = await go('/checkout', form({ id: pmm[1], qty:'1', delivery_id: ship3[1],
+      method:'bankpay', cust_name:'x', cust_email:'x@y.z', address:'x' }));
+    ok('unconfigured pay-by-bank is refused, not half-attempted', bad.loc === '/', bad.loc);
+    const junk = await go('/checkout', form({ id: pmm[1], qty:'1', delivery_id: ship3[1],
+      method:'wire-me-cash', cust_name:'x', cust_email:'x@y.z', address:'x' }));
+    ok('an unknown method falls back to bank transfer rather than erroring',
+       /^\/order\/RC-/.test(junk.loc || ''), junk.loc);
+  }
+}
+
 head('login throttle');
 jar = {};
 let blocked = false;
@@ -254,6 +315,10 @@ for (let i = 0; i < 8; i++) {
   if (rr.loc?.includes('Too+many') || rr.loc?.includes('Too%20many')) { blocked = true; break; }
 }
 ok('repeated wrong PINs get locked out', blocked);
+jar = {};
+r = await go('/admin/login', form({ pin: '778899' }));
+ok('but a correct PIN is refused while locked out', r.loc?.includes('Too+many') || r.loc?.includes('Too%20many'), r.loc);
+
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

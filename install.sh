@@ -58,17 +58,44 @@ say "Node $(node -v), npm $(npm -v)"
 # ---------- postgres ----------
 say "Setting up Postgres"
 if [ "$FAM" = rhel ]; then
+  # AlmaLinux/Rocky 8 default the postgresql module to version 10, which is
+  # long dead and stores passwords as md5 — that silently mismatches the
+  # scram-sha-256 we set in pg_hba below. Take a modern stream if one exists.
+  if dnf -q module list postgresql >/dev/null 2>&1; then
+    for v in 16 15 13; do
+      if dnf -q module list "postgresql:$v" >/dev/null 2>&1; then
+        dnf -y -q module reset postgresql >/dev/null 2>&1 || true
+        dnf -y -q module enable "postgresql:$v" >/dev/null 2>&1 && \
+          { say "Using PostgreSQL $v"; dnf -y -q install postgresql-server postgresql-contrib >/dev/null; break; }
+      fi
+    done
+  fi
+
   PGDATA_DIR=/var/lib/pgsql/data
   [ -f "$PGDATA_DIR/PG_VERSION" ] || postgresql-setup --initdb >/dev/null
+  say "PostgreSQL $(cat "$PGDATA_DIR/PG_VERSION" 2>/dev/null || echo '?') data directory ready"
+
+  # Store new passwords as scram, or the role we create below will be md5 and
+  # authentication fails with a very unhelpful message.
+  CONF="$PGDATA_DIR/postgresql.conf"
+  if grep -qE '^\s*#?\s*password_encryption' "$CONF"; then
+    sed -i -E 's|^\s*#?\s*password_encryption.*|password_encryption = scram-sha-256|' "$CONF"
+  else
+    echo "password_encryption = scram-sha-256" >> "$CONF"
+  fi
+
   # RHEL ships pg_hba with 'ident' for local TCP, which rejects password logins.
   HBA="$PGDATA_DIR/pg_hba.conf"
-  if ! grep -qE '^host\s+all\s+all\s+127\.0\.0\.1/32\s+scram-sha-256' "$HBA"; then
-    sed -i -E 's|^(host\s+all\s+all\s+127\.0\.0\.1/32\s+).*|\1scram-sha-256|' "$HBA"
-    sed -i -E 's|^(host\s+all\s+all\s+::1/128\s+).*|\1scram-sha-256|' "$HBA"
-    say "Allowed password logins on localhost"
-  fi
-  systemctl enable --now postgresql >/dev/null 2>&1 || true
-  systemctl reload postgresql >/dev/null 2>&1 || systemctl restart postgresql
+  sed -i -E 's|^(host\s+all\s+all\s+127\.0\.0\.1/32\s+).*|\1scram-sha-256|' "$HBA"
+  sed -i -E 's|^(host\s+all\s+all\s+::1/128\s+).*|\1scram-sha-256|' "$HBA"
+
+  systemctl enable postgresql >/dev/null 2>&1 || true
+  systemctl restart postgresql
+  for i in $(seq 1 20); do
+    sudo -u postgres psql -tAc 'select 1' >/dev/null 2>&1 && break
+    sleep 1
+    [ "$i" -eq 20 ] && { systemctl status postgresql --no-pager -l | tail -20; die "Postgres would not start."; }
+  done
 else
   systemctl enable --now postgresql >/dev/null 2>&1 || true
 fi
@@ -199,6 +226,82 @@ else
   ufw --force enable >/dev/null 2>&1 || true
 fi
 
+# ---------- hardening ----------
+say "Hardening"
+if [ "$FAM" = debian ]; then
+  $PKG install unattended-upgrades fail2ban >/dev/null 2>&1 || true
+  # Security patches apply themselves. A shop nobody patches is a shop that
+  # eventually gets owned by a bug someone fixed a year ago.
+  cat > /etc/apt/apt.conf.d/20auto-upgrades <<'EOF'
+APT::Periodic::Update-Package-Lists "1";
+APT::Periodic::Unattended-Upgrade "1";
+EOF
+else
+  $PKG install epel-release >/dev/null 2>&1 || true
+  $PKG install fail2ban dnf-automatic >/dev/null 2>&1 || true
+  sed -i 's/^apply_updates.*/apply_updates = yes/' /etc/dnf/automatic.conf 2>/dev/null || true
+  systemctl enable --now dnf-automatic.timer >/dev/null 2>&1 || true
+fi
+
+# Ban repeated SSH guessing. The console showed real brute-force noise already.
+cat > /etc/fail2ban/jail.local <<'EOF'
+[DEFAULT]
+bantime  = 1h
+findtime = 10m
+maxretry = 5
+
+[sshd]
+enabled = true
+EOF
+systemctl enable --now fail2ban >/dev/null 2>&1 || true
+
+# Postgres listens on localhost only — never expose the database to the internet.
+if [ "$FAM" = debian ]; then
+  PGCONF="$(ls -d /etc/postgresql/*/main 2>/dev/null | tail -1)/postgresql.conf"
+else
+  PGCONF="$PGDATA_DIR/postgresql.conf"
+fi
+if [ -f "$PGCONF" ] && ! grep -qE "^listen_addresses *= *'localhost'" "$PGCONF"; then
+  sed -i -E "s|^\s*#?\s*listen_addresses.*|listen_addresses = 'localhost'|" "$PGCONF"
+  systemctl restart postgresql >/dev/null 2>&1 || true
+  say "Database bound to localhost only"
+fi
+
+# ---------- backups ----------
+say "Setting up nightly backups"
+mkdir -p /var/backups/ron-cartel
+cat > /usr/local/bin/ron-cartel-backup <<EOF
+#!/usr/bin/env bash
+# Nightly dump, 14 days kept. Orders are the one thing here that cannot be rebuilt.
+set -euo pipefail
+. $ENV_FILE
+OUT=/var/backups/ron-cartel/\$(date +%Y-%m-%d).sql.gz
+pg_dump "\$DATABASE_URL" | gzip > "\$OUT"
+find /var/backups/ron-cartel -name '*.sql.gz' -mtime +14 -delete
+EOF
+chmod +x /usr/local/bin/ron-cartel-backup
+cat > /etc/systemd/system/ron-cartel-backup.service <<'EOF'
+[Unit]
+Description=Ron Cartel database backup
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/ron-cartel-backup
+EOF
+cat > /etc/systemd/system/ron-cartel-backup.timer <<'EOF'
+[Unit]
+Description=Nightly Ron Cartel backup
+[Timer]
+OnCalendar=*-*-* 03:30:00
+Persistent=true
+[Install]
+WantedBy=timers.target
+EOF
+systemctl daemon-reload
+systemctl enable --now ron-cartel-backup.timer >/dev/null 2>&1 || true
+/usr/local/bin/ron-cartel-backup >/dev/null 2>&1 \
+  && say "First backup written to /var/backups/ron-cartel" \
+  || warn "First backup did not run — check: ron-cartel-backup"
+
 # ---------- https ----------
 if [ -n "$DOMAIN" ]; then
   say "Getting an HTTPS certificate for $DOMAIN"
@@ -224,7 +327,15 @@ cat <<EOF
      Shop    $URL
      Admin   $URL/admin      PIN 9247
 
-   Change that PIN in Settings straight away.
+   Do these two things first:
+     1. Change the PIN in Settings
+     2. Fill in Settings -> Business details (trading name, address, contact)
+        Without them your Terms and footer say "not set yet", which looks worse
+        than saying nothing.
+
+   ${DOMAIN:+}${DOMAIN:-NOTE: running on a bare IP with no HTTPS. Browsers will
+   say \"Not secure\" to every customer. Point a domain here and re-run with it
+   to fix that: bash install.sh yourdomain.co.uk}
 
      systemctl status ron-cartel
      journalctl -u ron-cartel -f

@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 # =============================================================
-#  Ron Cartel — one-shot installer for a fresh Ubuntu/Debian VPS
+#  Ron Cartel — one-shot installer
 #
-#    sudo bash install.sh                      # plain HTTP on the server IP
+#    sudo bash install.sh                      # HTTP on the server IP
 #    sudo bash install.sh shop.example.com     # + HTTPS via Let's Encrypt
 #
-#  Installs Node, Postgres, nginx; creates the database with a password
-#  it generates itself; runs the app under systemd so it restarts on boot
-#  and on crash. Safe to run again — it updates rather than duplicates.
+#  Works on AlmaLinux / Rocky / RHEL 9 (dnf) and Ubuntu / Debian (apt).
+#  Installs Node, Postgres and nginx, generates its own database password,
+#  and runs the app under systemd so it survives reboots and crashes.
+#  Safe to run again — it updates rather than duplicates.
 # =============================================================
 set -euo pipefail
 
@@ -18,32 +19,66 @@ SERVICE=/etc/systemd/system/ron-cartel.service
 DOMAIN="${1:-}"
 PORT=3000
 
-say() { printf '\n\033[1;34m==>\033[0m %s\n' "$*"; }
-die() { printf '\n\033[1;31mError:\033[0m %s\n' "$*" >&2; exit 1; }
+say()  { printf '\n\033[1;34m==>\033[0m %s\n' "$*"; }
+warn() { printf '\033[1;33m  ! \033[0m%s\n' "$*"; }
+die()  { printf '\n\033[1;31mError:\033[0m %s\n' "$*" >&2; exit 1; }
 
 [ "$(id -u)" -eq 0 ] || die "Run this with sudo."
-command -v apt-get >/dev/null || die "This script expects Ubuntu or Debian."
 
+# ---------- which family are we on ----------
+if   command -v dnf     >/dev/null 2>&1; then FAM=rhel;   PKG="dnf -y -q"
+elif command -v apt-get >/dev/null 2>&1; then FAM=debian; PKG="apt-get -y -qq"
+else die "Needs dnf (AlmaLinux/Rocky/RHEL) or apt (Ubuntu/Debian)."
+fi
+say "Detected $( . /etc/os-release 2>/dev/null; echo "${PRETTY_NAME:-$FAM}" )"
+
+# ---------- packages ----------
 say "Installing packages"
-export DEBIAN_FRONTEND=noninteractive
-apt-get update -qq
-apt-get install -y -qq curl ca-certificates gnupg git nginx postgresql postgresql-contrib ufw >/dev/null
+if [ "$FAM" = rhel ]; then
+  $PKG install curl ca-certificates git nginx policycoreutils-python-utils \
+               postgresql-server postgresql-contrib firewalld >/dev/null
+else
+  export DEBIAN_FRONTEND=noninteractive
+  apt-get update -qq
+  $PKG install curl ca-certificates gnupg git nginx postgresql postgresql-contrib ufw >/dev/null
+fi
 
-if ! command -v node >/dev/null || [ "$(node -v | cut -c2- | cut -d. -f1)" -lt 20 ]; then
+if ! command -v node >/dev/null 2>&1 || [ "$(node -v | cut -c2- | cut -d. -f1)" -lt 20 ]; then
   say "Installing Node 22"
-  curl -fsSL https://deb.nodesource.com/setup_22.x | bash - >/dev/null 2>&1
-  apt-get install -y -qq nodejs >/dev/null
+  if [ "$FAM" = rhel ]; then
+    curl -fsSL https://rpm.nodesource.com/setup_22.x | bash - >/dev/null 2>&1
+    $PKG install nodejs >/dev/null
+  else
+    curl -fsSL https://deb.nodesource.com/setup_22.x | bash - >/dev/null 2>&1
+    $PKG install nodejs >/dev/null
+  fi
 fi
 say "Node $(node -v), npm $(npm -v)"
 
-say "Setting up the database"
-systemctl enable --now postgresql >/dev/null 2>&1 || true
+# ---------- postgres ----------
+say "Setting up Postgres"
+if [ "$FAM" = rhel ]; then
+  PGDATA_DIR=/var/lib/pgsql/data
+  [ -f "$PGDATA_DIR/PG_VERSION" ] || postgresql-setup --initdb >/dev/null
+  # RHEL ships pg_hba with 'ident' for local TCP, which rejects password logins.
+  HBA="$PGDATA_DIR/pg_hba.conf"
+  if ! grep -qE '^host\s+all\s+all\s+127\.0\.0\.1/32\s+scram-sha-256' "$HBA"; then
+    sed -i -E 's|^(host\s+all\s+all\s+127\.0\.0\.1/32\s+).*|\1scram-sha-256|' "$HBA"
+    sed -i -E 's|^(host\s+all\s+all\s+::1/128\s+).*|\1scram-sha-256|' "$HBA"
+    say "Allowed password logins on localhost"
+  fi
+  systemctl enable --now postgresql >/dev/null 2>&1 || true
+  systemctl reload postgresql >/dev/null 2>&1 || systemctl restart postgresql
+else
+  systemctl enable --now postgresql >/dev/null 2>&1 || true
+fi
+
 DB_NAME=roncartel
 DB_USER=roncartel
 if sudo -u postgres psql -tAc "select 1 from pg_roles where rolname='$DB_USER'" | grep -q 1; then
-  say "Database user already exists — keeping the current password"
-  DB_PASS="$(grep -oP '(?<=://'"$DB_USER"':)[^@]+' "$ENV_FILE" 2>/dev/null || true)"
-  [ -n "$DB_PASS" ] || die "User exists but $ENV_FILE has no password. Remove the role and re-run."
+  say "Database user exists — reusing the password from $ENV_FILE"
+  DB_PASS="$(sed -n 's|.*://'"$DB_USER"':\([^@]*\)@.*|\1|p' "$ENV_FILE" 2>/dev/null || true)"
+  [ -n "$DB_PASS" ] || die "Role exists but $ENV_FILE has no password. Drop the role and re-run."
 else
   DB_PASS="$(head -c 32 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 28)"
   sudo -u postgres psql -qc "create role $DB_USER login password '$DB_PASS';" >/dev/null
@@ -51,13 +86,14 @@ fi
 sudo -u postgres psql -tAc "select 1 from pg_database where datname='$DB_NAME'" | grep -q 1 \
   || sudo -u postgres createdb -O "$DB_USER" "$DB_NAME"
 
+# ---------- app ----------
 say "Fetching the app"
 if [ -d "$APP_DIR/.git" ]; then
   git -C "$APP_DIR" fetch --depth 1 origin main -q && git -C "$APP_DIR" reset --hard origin/main -q
 else
   rm -rf "$APP_DIR"
   git clone --depth 1 -q "$REPO" "$APP_DIR" \
-    || die "Could not clone $REPO — if the repo is private, make it public or set REPO to a URL with a token."
+    || die "Could not clone $REPO — if the repo is private, make it public or pass REPO=https://TOKEN@github.com/..."
 fi
 
 say "Installing dependencies"
@@ -72,7 +108,8 @@ DATABASE_URL=postgresql://$DB_USER:$DB_PASS@127.0.0.1:5432/$DB_NAME
 EOF
 chmod 600 "$ENV_FILE"
 
-id -u roncartel >/dev/null 2>&1 || useradd --system --home "$APP_DIR" --shell /usr/sbin/nologin roncartel
+id -u roncartel >/dev/null 2>&1 || useradd --system --home "$APP_DIR" --shell /sbin/nologin roncartel 2>/dev/null \
+  || useradd --system --home "$APP_DIR" --shell /usr/sbin/nologin roncartel
 chown -R roncartel:roncartel "$APP_DIR"
 
 say "Installing the service"
@@ -87,7 +124,7 @@ Type=simple
 User=roncartel
 WorkingDirectory=$APP_DIR
 EnvironmentFile=$ENV_FILE
-ExecStart=/usr/bin/node src/index.js
+ExecStart=$(command -v node) src/index.js
 Restart=always
 RestartSec=3
 NoNewPrivileges=true
@@ -106,48 +143,77 @@ systemctl restart ron-cartel
 say "Waiting for it to come up"
 for i in $(seq 1 30); do
   sleep 1
-  if curl -fsS "http://127.0.0.1:$PORT/healthz" >/dev/null 2>&1; then break; fi
-  [ "$i" -eq 30 ] && { journalctl -u ron-cartel -n 30 --no-pager; die "The app did not start — log above."; }
+  curl -fsS "http://127.0.0.1:$PORT/healthz" >/dev/null 2>&1 && break
+  [ "$i" -eq 30 ] && { journalctl -u ron-cartel -n 40 --no-pager; die "App did not start — log above."; }
 done
 
+# ---------- nginx ----------
 say "Configuring nginx"
 SERVER_NAME="${DOMAIN:-_}"
-cat > /etc/nginx/sites-available/ron-cartel <<EOF
-server {
+VHOST='server {
     listen 80;
     listen [::]:80;
-    server_name $SERVER_NAME;
-    client_max_body_size 12M;          # product photos and payment screenshots
+    server_name '"$SERVER_NAME"';
+    client_max_body_size 12M;
 
     location / {
-        proxy_pass http://127.0.0.1:$PORT;
+        proxy_pass http://127.0.0.1:'"$PORT"';
         proxy_http_version 1.1;
-        proxy_set_header Host              \$host;
-        proxy_set_header X-Real-IP         \$remote_addr;
-        proxy_set_header X-Forwarded-For   \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
         proxy_read_timeout 60s;
     }
-}
-EOF
-ln -sf /etc/nginx/sites-available/ron-cartel /etc/nginx/sites-enabled/ron-cartel
-rm -f /etc/nginx/sites-enabled/default
-nginx -t >/dev/null 2>&1 || die "nginx config test failed"
-systemctl reload nginx
+}'
+if [ "$FAM" = rhel ]; then
+  printf '%s\n' "$VHOST" > /etc/nginx/conf.d/ron-cartel.conf
+  # stop the stock welcome page winning the default_server slot
+  [ -f /etc/nginx/nginx.conf ] && sed -i '/^\s*server\s*{/,/^\s*}/{ /listen\s*80 default_server/d }' /etc/nginx/nginx.conf || true
+  # SELinux blocks nginx talking to a local port unless told otherwise
+  if command -v getenforce >/dev/null 2>&1 && [ "$(getenforce)" != "Disabled" ]; then
+    setsebool -P httpd_can_network_connect 1 >/dev/null 2>&1 && say "SELinux: allowed nginx to reach the app" \
+      || warn "Could not set the SELinux boolean — if you get 502s, run: setsebool -P httpd_can_network_connect 1"
+  fi
+else
+  mkdir -p /etc/nginx/sites-available /etc/nginx/sites-enabled
+  printf '%s\n' "$VHOST" > /etc/nginx/sites-available/ron-cartel
+  ln -sf /etc/nginx/sites-available/ron-cartel /etc/nginx/sites-enabled/ron-cartel
+  rm -f /etc/nginx/sites-enabled/default
+fi
+nginx -t >/dev/null 2>&1 || { nginx -t; die "nginx config test failed"; }
+systemctl enable --now nginx >/dev/null 2>&1 || true
+systemctl reload nginx 2>/dev/null || systemctl restart nginx
 
-say "Firewall"
-ufw allow OpenSSH >/dev/null 2>&1 || true
-ufw allow 'Nginx Full' >/dev/null 2>&1 || true
-ufw --force enable >/dev/null 2>&1 || true
-
-if [ -n "$DOMAIN" ]; then
-  say "Getting an HTTPS certificate for $DOMAIN"
-  apt-get install -y -qq certbot python3-certbot-nginx >/dev/null
-  certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos --register-unsafely-without-email --redirect \
-    || say "Certbot did not complete — check the domain's DNS points at this server, then run: certbot --nginx -d $DOMAIN"
+# ---------- firewall ----------
+say "Opening the firewall"
+if [ "$FAM" = rhel ]; then
+  systemctl enable --now firewalld >/dev/null 2>&1 || true
+  firewall-cmd --permanent --add-service=http  >/dev/null 2>&1 || true
+  firewall-cmd --permanent --add-service=https >/dev/null 2>&1 || true
+  firewall-cmd --permanent --add-service=ssh   >/dev/null 2>&1 || true
+  firewall-cmd --reload >/dev/null 2>&1 || true
+else
+  ufw allow OpenSSH >/dev/null 2>&1 || true
+  ufw allow 'Nginx Full' >/dev/null 2>&1 || true
+  ufw --force enable >/dev/null 2>&1 || true
 fi
 
-IP="$(curl -fsS -4 icanhazip.com 2>/dev/null || hostname -I | awk '{print $1}')"
+# ---------- https ----------
+if [ -n "$DOMAIN" ]; then
+  say "Getting an HTTPS certificate for $DOMAIN"
+  if [ "$FAM" = rhel ]; then
+    $PKG install epel-release >/dev/null 2>&1 || true
+    $PKG install certbot python3-certbot-nginx >/dev/null 2>&1 || true
+  else
+    $PKG install certbot python3-certbot-nginx >/dev/null 2>&1 || true
+  fi
+  certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos \
+          --register-unsafely-without-email --redirect \
+    || warn "Certbot did not finish — point the domain's DNS at this server, then: certbot --nginx -d $DOMAIN"
+fi
+
+IP="$(curl -fsS -4 --max-time 8 icanhazip.com 2>/dev/null || hostname -I | awk '{print $1}')"
 URL="${DOMAIN:+https://$DOMAIN}"; URL="${URL:-http://$IP}"
 
 cat <<EOF
@@ -160,10 +226,9 @@ cat <<EOF
 
    Change that PIN in Settings straight away.
 
-   Useful:
      systemctl status ron-cartel
      journalctl -u ron-cartel -f
-     bash install.sh${DOMAIN:+ $DOMAIN}     # re-run to update
+     bash install.sh${DOMAIN:+ $DOMAIN}      # re-run to update
   ────────────────────────────────────────────────
 
 EOF

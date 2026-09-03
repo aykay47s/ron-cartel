@@ -93,7 +93,8 @@ publicRoutes.get('/', async (c) => {
 })();
 </script>`;
 
-  return c.html(layout({ title: `${s.shop_name} — grafted Sur-Rons`, body, active: 'shop', admin: c.get('admin') }));
+  return c.html(layout({ title: `${s.shop_name} — grafted Sur-Rons`, body, active: 'shop',
+                         admin: c.get('admin'), customer: c.get('customer'), settings: s }));
 });
 
 /* ---------------- product ---------------- */
@@ -152,7 +153,8 @@ document.querySelectorAll('[data-step]').forEach(function(b){
 });
 </script>`;
 
-  return c.html(layout({ title: `${p.name} — ${s.shop_name}`, body, admin: c.get('admin') }));
+  return c.html(layout({ title: `${p.name} — ${s.shop_name}`, body,
+                         admin: c.get('admin'), customer: c.get('customer'), settings: s }));
 });
 
 /* ---------------- image serving ---------------- */

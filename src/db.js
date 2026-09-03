@@ -119,6 +119,7 @@ const MIGRATIONS = [
   `alter table orders add column if not exists tracking_number text not null default ''`,
   `alter table orders add column if not exists dispatched_at timestamptz`,
   `alter table orders add column if not exists note text not null default ''`,
+  `alter table orders add column if not exists provider_ref text not null default ''`,
 
   /* --- buyer-uploaded proof of payment --- */
   `create table if not exists payment_proofs (
@@ -140,6 +141,12 @@ const MIGRATIONS = [
   `create index if not exists order_events_idx on order_events (order_id, created_at)`,
   `create index if not exists orders_customer_idx on orders (customer_id, created_at desc)`,
   `create index if not exists orders_status_idx on orders (status, created_at desc)`,
+  /* Rate limiting that survives a restart, unlike an in-memory map. */
+  `create table if not exists rate_hits (
+     bucket text not null,
+     at timestamptz not null default now()
+   )`,
+  `create index if not exists rate_hits_idx on rate_hits (bucket, at desc)`,
   `create index if not exists products_pos_idx on products (position, id)`,
 ];
 
@@ -162,6 +169,29 @@ const DEFAULT_SETTINGS = {
   smtp_pass: '',
   smtp_from: '',
   emails_on: '',
+
+  /* Business identity. UK distance selling requires a trader to give their
+     name, a geographic address and contact details before a customer buys —
+     and their absence is what makes a shop feel like a front. */
+  legal_name: '',
+  trading_address: '',
+  contact_phone: '',
+  vat_number: '',
+  company_number: '',
+  returns_days: '14',
+  returns_note: '',
+  privacy_note: '',
+  terms_note: '',
+  site_url: '',
+
+  /* Pay by bank (open banking) via TrueLayer. */
+  bank_pay_on: '',
+  tl_env: 'sandbox',
+  tl_client_id: '',
+  tl_client_secret: '',
+  tl_kid: '',
+  tl_private_key: '',
+  tl_merchant_id: '',
 };
 
 const DEFAULT_DELIVERY = [

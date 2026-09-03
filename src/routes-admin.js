@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { q, one, many, getSettings, setSettings } from './db.js';
 import {
   login, logout, requireAdmin, setPin, DEFAULT_PIN,
-  readCookie, setCookie, clearCookie, throttle,
+  readCookie, setCookie, clearCookie, lockedOut, recordFailure, clearFailures,
 } from './auth.js';
 import { layout, esc, money, pence, icon, productArt, flash, STATUS_LABEL } from './ui.js';
 import { sendMailSafe, templates } from './mail.js';
@@ -33,12 +33,17 @@ adminRoutes.get('/admin/login', async (c) => {
 
 adminRoutes.post('/admin/login', async (c) => {
   const f = await c.req.parseBody();
-  if (!throttle(ip(c))) {
+  const who = ip(c);
+  if (lockedOut(who)) {
     return c.redirect('/admin/login?e=' +
-      encodeURIComponent('Too many tries. Wait fifteen minutes.'));
+      encodeURIComponent('Too many wrong tries. Wait fifteen minutes.'));
   }
   const sess = await login(String(f.pin || ''));
-  if (!sess) return c.redirect('/admin/login?e=' + encodeURIComponent('Wrong PIN.'));
+  if (!sess) {
+    recordFailure(who);
+    return c.redirect('/admin/login?e=' + encodeURIComponent('Wrong PIN.'));
+  }
+  clearFailures(who);          // a correct PIN wipes the slate
   setCookie(c, sess.token, sess.expires);
   const next = String(f.next || '/admin');
   return c.redirect(next.startsWith('/admin') ? next : '/admin');
@@ -413,6 +418,81 @@ adminRoutes.get('/admin/settings', async (c) => {
       </section>
 
       <section class="panel spot" style="margin-top:18px">
+        <div class="panel-h"><span class="hico" aria-hidden="true">${icon.bankpay}</span>
+          <h3>Pay by bank</h3>
+          <span class="tag go" style="margin-left:auto">${icon.bolt} Recommended</span></div>
+        <div class="panel-b">
+          <div class="note info" style="margin:0 0 16px">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4.5M12 8h.01"/></svg>
+            <span>The customer taps their bank and approves in the app. Money arrives in seconds,
+              fees are pennies rather than percent, and the order marks itself paid — no references
+              to match by hand. Sign up at truelayer.com, then paste the keys here.</span></div>
+          <label style="display:flex;gap:9px;align-items:center;margin-bottom:16px;font-size:13.5px">
+            <input type="checkbox" name="bank_pay_on" ${s.bank_pay_on ? 'checked' : ''} style="width:auto;min-height:auto">
+            Offer pay by bank at checkout</label>
+          <div class="grid2">
+            <div class="field"><label for="tle">Environment</label>
+              <select id="tle" name="tl_env">
+                <option value="sandbox"${s.tl_env !== 'live' ? ' selected' : ''}>Sandbox (testing)</option>
+                <option value="live"${s.tl_env === 'live' ? ' selected' : ''}>Live</option>
+              </select></div>
+            <div class="field"><label for="tlm">Merchant account ID</label>
+              <input id="tlm" name="tl_merchant_id" value="${esc(s.tl_merchant_id)}" autocomplete="off"></div>
+          </div>
+          <div class="grid2">
+            <div class="field"><label for="tlc">Client ID</label>
+              <input id="tlc" name="tl_client_id" value="${esc(s.tl_client_id)}" autocomplete="off"></div>
+            <div class="field"><label for="tls">Client secret</label>
+              <input id="tls" name="tl_client_secret" type="password" value="${esc(s.tl_client_secret)}" autocomplete="off"></div>
+          </div>
+          <div class="field"><label for="tlk">Signing key ID (kid)</label>
+            <input id="tlk" name="tl_kid" value="${esc(s.tl_kid)}" autocomplete="off"></div>
+          <div class="field"><label for="tlp">Private key</label>
+            <textarea id="tlp" name="tl_private_key" style="min-height:110px;font-family:var(--mono);font-size:12px"
+              placeholder="-----BEGIN EC PRIVATE KEY-----">${esc(s.tl_private_key)}</textarea>
+            <div class="hint">The EC key you generated when you registered the signing key. It never leaves your server.</div></div>
+        </div>
+      </section>
+
+      <section class="panel spot" style="margin-top:18px">
+        <div class="panel-h"><span class="hico" aria-hidden="true">${icon.cog}</span><h3>Business details</h3></div>
+        <div class="panel-b">
+          <div class="note info" style="margin:0 0 16px">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4.5M12 8h.01"/></svg>
+            <span>Selling at a distance in the UK means giving buyers your trading name, a real
+              address and a way to contact you. It's also the quickest way to stop looking like
+              a scam — these show in the footer and on your Terms page.</span></div>
+          <div class="grid2">
+            <div class="field"><label for="ln">Trading name</label>
+              <input id="ln" name="legal_name" value="${esc(s.legal_name)}" maxlength="120"
+                     placeholder="Ron Cartel Ltd"></div>
+            <div class="field"><label for="cph">Phone</label>
+              <input id="cph" name="contact_phone" value="${esc(s.contact_phone)}" maxlength="30"></div>
+          </div>
+          <div class="field"><label for="ta">Trading address</label>
+            <textarea id="ta" name="trading_address" maxlength="300"
+              placeholder="Street, town, postcode">${esc(s.trading_address)}</textarea></div>
+          <div class="grid2">
+            <div class="field"><label for="cn2">Company number <span style="color:var(--ghost);font-weight:400">optional</span></label>
+              <input id="cn2" name="company_number" value="${esc(s.company_number)}" maxlength="30"></div>
+            <div class="field"><label for="vn">VAT number <span style="color:var(--ghost);font-weight:400">optional</span></label>
+              <input id="vn" name="vat_number" value="${esc(s.vat_number)}" maxlength="30"></div>
+          </div>
+          <div class="grid2">
+            <div class="field"><label for="rd">Cancellation window (days)</label>
+              <input id="rd" name="returns_days" value="${esc(s.returns_days)}" inputmode="numeric" maxlength="3">
+              <div class="hint">14 is the legal minimum for distance sales.</div></div>
+            <div class="field"><label for="su">Your site address</label>
+              <input id="su" name="site_url" value="${esc(s.site_url)}" maxlength="200"
+                     placeholder="https://roncartel.co.uk">
+              <div class="hint">Used in order emails so links work.</div></div>
+          </div>
+          <div class="field"><label for="rn">Anything to add to your returns page</label>
+            <textarea id="rn" name="returns_note" maxlength="600">${esc(s.returns_note)}</textarea></div>
+        </div>
+      </section>
+
+      <section class="panel spot" style="margin-top:18px">
         <div class="panel-h"><span class="hico" aria-hidden="true">${icon.mail}</span><h3>Order emails</h3></div>
         <div class="panel-b">
           <label style="display:flex;gap:9px;align-items:center;margin-bottom:16px;font-size:13.5px">
@@ -489,6 +569,15 @@ adminRoutes.post('/admin/settings', async (c) => {
     smtp_host: f.smtp_host, smtp_port: f.smtp_port,
     smtp_user: f.smtp_user, smtp_pass: f.smtp_pass, smtp_from: f.smtp_from,
     emails_on: f.emails_on != null ? '1' : '',
+    legal_name: f.legal_name, trading_address: f.trading_address,
+    contact_phone: f.contact_phone, company_number: f.company_number,
+    vat_number: f.vat_number, site_url: f.site_url,
+    returns_days: String(parseInt(f.returns_days, 10) || 14),
+    returns_note: f.returns_note,
+    bank_pay_on: f.bank_pay_on != null ? '1' : '',
+    tl_env: f.tl_env === 'live' ? 'live' : 'sandbox',
+    tl_client_id: f.tl_client_id, tl_client_secret: f.tl_client_secret,
+    tl_kid: f.tl_kid, tl_private_key: f.tl_private_key, tl_merchant_id: f.tl_merchant_id,
   });
   /* Only touch a delivery option if this submission actually carried its
      fields. Without that check, saving the settings form from anywhere that

@@ -26,6 +26,8 @@ export const icon = {
   bank: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.6 9.4L12 3.6l9.4 5.8"/><path d="M5 10.6V19M19 10.6V19M12 10.6V19"/><path d="M2.6 20.4h18.8"/></svg>',
   cog: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 00.3 1.9l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-2.9 1.2v.2a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.6 1.7 1.7 0 00-1.9.4l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00-1.2-2.9H3a2 2 0 110-4h.1a1.7 1.7 0 001.6-1.1 1.7 1.7 0 00-.4-1.9l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.9.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.9-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.9V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/></svg>',
   box: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8l-9-5-9 5v8l9 5z"/><path d="M3.3 7.5L12 12.5l8.7-5M12 22V12.5"/></svg>',
+  bankpay: '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2.5"/><path d="M2 9h20"/><path d="M7 14.5h4"/><circle cx="17" cy="14.5" r="2"/></svg>',
+  bolt: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4.5 13H11l-1 9 8.5-11H12z"/></svg>',
   clock: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5"/><path d="M12 6.5V12l3.6 1.8"/></svg>',
   truck: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13" rx="1.5"/><path d="M16 8h4l3 3v5h-7z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>',
   camera: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h3.5L8 5h8l1.5 2H21v13H3z"/><circle cx="12" cy="13" r="3.6"/></svg>',
@@ -62,7 +64,45 @@ function nav(active, isAdmin, isCustomer) {
   </nav>`;
 }
 
-export function layout({ title, body, active = '', admin = null, customer = null, head = '', wide = false }) {
+/* One footer everywhere. A shop with no trading name, no address and no
+   returns link reads as a front, however good the rest looks. */
+export function siteFooter(s = {}) {
+  const bits = [s.legal_name || s.shop_name, s.trading_address, s.contact_email, s.contact_phone]
+    .filter(Boolean).map(esc);
+  return `<footer class="sitefoot">
+    <div class="shell">
+      <div class="cols">
+        <div>
+          <div class="logo" style="margin-bottom:12px">
+            <span class="glyph" aria-hidden="true"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M15 6a1 1 0 100-2 1 1 0 000 2zM12 17.5V14l-3-3 4-3 2 3h3"/></svg></span>
+            ${esc(s.shop_name || 'Ron Cartel')}
+          </div>
+          ${bits.length ? `<p class="addr">${bits.join('<br>')}</p>`
+                        : '<p class="addr">Business details not set yet.</p>'}
+        </div>
+        <div>
+          <div class="ft">Shop</div>
+          <a href="/">All stock</a>
+          <a href="/track">Track an order</a>
+          <a href="/account">Your orders</a>
+        </div>
+        <div>
+          <div class="ft">Buying from us</div>
+          <a href="/returns">Returns &amp; cancellations</a>
+          <a href="/terms">Terms</a>
+          <a href="/privacy">Privacy</a>
+          <a href="/contact">Contact</a>
+        </div>
+      </div>
+      <div class="fbot">
+        <span>© ${new Date().getFullYear()} ${esc(s.legal_name || s.shop_name || 'Ron Cartel')}</span>
+        <span>${esc(s.returns_days || '14')}-day cancellation right · UK consumer law applies</span>
+      </div>
+    </div>
+  </footer>`;
+}
+
+export function layout({ title, body, active = '', admin = null, customer = null, head = '', wide = false, settings = null }) {
   return `<!doctype html>
 <html lang="en-GB">
 <head>
@@ -91,7 +131,7 @@ ${head}
     </div>
   </div>
 </header>
-<div class="page">${body}</div>
+<div class="page">${body}${settings ? siteFooter(settings) : ''}</div>
 <script src="/assets/app.js"></script>
 </body>
 </html>`;

@@ -114,21 +114,39 @@ export async function requireAdmin(c, next) {
 
 /* Cheap per-IP throttle on the login form. */
 const attempts = new Map();
-/* A short PIN is only safe if guessing is slow. Five tries per quarter hour
-   turns 10,000 combinations into roughly three weeks of continuous attempts. */
-export function throttle(key, limit = 5, windowMs = 15 * 60_000) {
-  const now = Date.now();
-  const rec = attempts.get(key);
-  if (!rec || now > rec.reset) {
-    attempts.set(key, { n: 1, reset: now + windowMs });
-    return true;
-  }
-  rec.n += 1;
-  return rec.n <= limit;
+/* A short PIN is only safe if guessing is slow — but only FAILURES should
+   count. Counting successful sign-ins too means an owner who logs in a few
+   times in one session locks themselves out of their own shop. */
+const fails = new Map();
+const LIMIT = 5;
+const WINDOW = 15 * 60_000;
+
+export function lockedOut(key) {
+  const rec = fails.get(key);
+  if (!rec) return false;
+  if (Date.now() > rec.reset) { fails.delete(key); return false; }
+  return rec.n >= LIMIT;
 }
+
+export function recordFailure(key) {
+  const now = Date.now();
+  const rec = fails.get(key);
+  if (!rec || now > rec.reset) fails.set(key, { n: 1, reset: now + WINDOW });
+  else rec.n += 1;
+}
+
+export function clearFailures(key) { fails.delete(key); }
+
+/* Kept for callers that just want the old one-shot behaviour. */
+export function throttle(key) {
+  if (lockedOut(key)) return false;
+  recordFailure(key);
+  return true;
+}
+
 setInterval(() => {
   const now = Date.now();
-  for (const [k, v] of attempts) if (now > v.reset) attempts.delete(k);
+  for (const [k, v] of fails) if (now > v.reset) fails.delete(k);
 }, 60_000).unref?.();
 
 /* ============================================================

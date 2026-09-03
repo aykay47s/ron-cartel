@@ -4,6 +4,7 @@ import { layout, esc, money, icon, productArt, makeRef } from './ui.js';
 import { customerFrom, readCustomerCookie } from './auth.js';
 import { sendMailSafe, templates } from './mail.js';
 import { statusPill } from './routes-customer.js';
+import { bankConfig, createBankPayment, bankPaymentStatus } from './pay-bank.js';
 
 export const checkoutRoutes = new Hono();
 
@@ -26,13 +27,14 @@ checkoutRoutes.get('/checkout', async (c) => {
   const qty = clampQty(c.req.query('qty'));
   const product = id ? await one('select * from products where id = $1', [id]) : null;
   const s = await getSettings();
+  const cust = await customerFrom(readCustomerCookie(c));
 
   if (!product || product.status !== 'stock') {
     const body = `<main class="shell"><div class="blank" style="margin:60px 0 90px">
       <div class="ico">${icon.bag}</div><h3>That item isn't available</h3>
       <p>It may have sold or been reserved while you were looking.</p>
       <a class="btn" href="/" style="display:inline-flex">Back to the shop</a></div></main>`;
-    return c.html(layout({ title: 'Checkout', body, admin: c.get('admin') }), 404);
+    return c.html(layout({ title: 'Checkout', body, admin: c.get('admin') , settings: s }), 404);
   }
 
   const options = await many(
@@ -52,28 +54,37 @@ checkoutRoutes.get('/checkout', async (c) => {
       <span class="oprice${o.price_p === 0 ? ' free' : ''}">${o.price_p === 0 ? 'Free' : '£' + money(o.price_p)}</span>
     </label>`).join('');
 
-  const payRows = `
-    ${bankReady ? `
-    <label class="opt sel" data-pay="bank">
-      <input type="radio" name="method" value="bank" checked>
-      <span class="dot" aria-hidden="true"><i></i></span>
-      <span class="oico" aria-hidden="true">${icon.bank}</span>
-      <span class="otxt"><span class="t">Bank transfer <span class="tag go">Instant</span></span>
-        <span class="s">Faster Payments — usually clears in seconds</span></span>
-    </label>` : ''}
-    ${paypalReady ? `
-    <label class="opt${bankReady ? '' : ' sel'}" data-pay="ppff">
-      <input type="radio" name="method" value="ppff"${bankReady ? '' : ' checked'}>
-      <span class="dot" aria-hidden="true"><i></i></span>
-      <span class="oico" aria-hidden="true"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><path d="M6 20.2L8.3 6.4h5.4c2.7 0 4.2 1.5 3.8 3.9-.5 2.6-2.5 4.1-5.3 4.1H9.8L9 20.2z"/></svg></span>
-      <span class="otxt"><span class="t">PayPal — Friends &amp; Family</span>
-        <span class="s">Personal payment, checked by hand</span></span>
-    </label>` : ''}
-    ${!bankReady && !paypalReady ? `<div class="note warn">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v5M12 16.5h.01"/></svg>
-      <span>No payment method is set up yet. Add your bank details or PayPal address in admin settings.</span></div>` : ''}`;
+  const bank = await bankConfig();
 
-  const canOrder = bankReady || paypalReady;
+  const method = (id, label, note, ic, tag, on) => `
+    <label class="opt pay${on ? ' sel' : ''}" data-pay="${id}">
+      <input type="radio" name="method" value="${id}"${on ? ' checked' : ''}>
+      <span class="dot" aria-hidden="true"><i></i></span>
+      <span class="oico" aria-hidden="true">${ic}</span>
+      <span class="otxt"><span class="t">${label}${tag || ''}</span>
+        <span class="s">${note}</span></span>
+    </label>`;
+
+  /* Best option first: instant, confirmed automatically, nothing to match by hand. */
+  let firstMethod = true;
+  const pick = () => { const v = firstMethod; firstMethod = false; return v; };
+
+  const payRows = `
+    ${bank.ready ? method('bankpay', 'Pay by bank',
+        'Tap your bank, approve in the app. Clears in seconds and confirms itself.',
+        icon.bankpay, ` <span class="tag go">${icon.bolt} Instant</span>`, pick()) : ''}
+    ${bankReady ? method('bank', 'Manual bank transfer',
+        'You send it yourself using the reference. We confirm once it lands.',
+        icon.bank, '', pick()) : ''}
+    ${paypalReady ? method('ppff', 'PayPal — Friends &amp; Family',
+        'Personal payment, checked by hand. No PayPal buyer protection.',
+        '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><path d="M6 20.2L8.3 6.4h5.4c2.7 0 4.2 1.5 3.8 3.9-.5 2.6-2.5 4.1-5.3 4.1H9.8L9 20.2z"/></svg>',
+        '', pick()) : ''}
+    ${!bank.ready && !bankReady && !paypalReady ? `<div class="note warn">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v5M12 16.5h.01"/></svg>
+      <span>No payment method is set up yet. Add one in Admin &rarr; Settings.</span></div>` : ''}`;
+
+  const canOrder = bank.ready || bankReady || paypalReady;
   const first = options[0];
   const priced = await priceOrder({ product, qty, option: first });
 
@@ -94,15 +105,18 @@ checkoutRoutes.get('/checkout', async (c) => {
       <div class="panel-b">
         <div class="grid2">
           <div class="field"><label for="cn">Full name</label>
-            <input id="cn" name="cust_name" required maxlength="80" autocomplete="name"></div>
+            <input id="cn" name="cust_name" required maxlength="80" autocomplete="name"
+                   value="${esc(cust?.name || '')}"></div>
           <div class="field"><label for="ce">Email</label>
-            <input id="ce" name="cust_email" type="email" required maxlength="120" autocomplete="email"></div>
+            <input id="ce" name="cust_email" type="email" required maxlength="120" autocomplete="email"
+                   value="${esc(cust?.email || '')}"></div>
         </div>
         <div class="field"><label for="cp">Phone</label>
-          <input id="cp" name="cust_phone" maxlength="30" autocomplete="tel"></div>
+          <input id="cp" name="cust_phone" maxlength="30" autocomplete="tel"
+                 value="${esc(cust?.phone || '')}"></div>
         <div class="field"><label for="ad">Delivery address</label>
           <textarea id="ad" name="address" required maxlength="400"
-            placeholder="Street, town, postcode" autocomplete="street-address"></textarea></div>
+            placeholder="Street, town, postcode" autocomplete="street-address">${esc(cust?.address || '')}</textarea></div>
       </div>
     </section>
 
@@ -176,7 +190,8 @@ checkoutRoutes.get('/checkout', async (c) => {
 })();
 </script>`;
 
-  return c.html(layout({ title: `Checkout — ${s.shop_name}`, body, admin: c.get('admin') }));
+  return c.html(layout({ title: `Checkout — ${s.shop_name}`, body,
+                         admin: c.get('admin'), customer: cust, settings: s }));
 });
 
 checkoutRoutes.post('/checkout', async (c) => {
@@ -187,9 +202,12 @@ checkoutRoutes.post('/checkout', async (c) => {
   const qty = clampQty(form.qty);
   const option = await one('select * from delivery_options where id = $1 and enabled', [form.delivery_id]);
   const s = await getSettings();
-  const method = form.method === 'ppff' ? 'ppff' : 'bank';
-  if (method === 'bank' && !(s.bank_sort && s.bank_number)) return c.redirect('/');
-  if (method === 'ppff' && !s.paypal_address) return c.redirect('/');
+  const bank = await bankConfig();
+  const asked = String(form.method || 'bank');
+  const method = ['bank', 'ppff', 'bankpay'].includes(asked) ? asked : 'bank';
+  if (method === 'bank'    && !(s.bank_sort && s.bank_number)) return c.redirect('/');
+  if (method === 'ppff'    && !s.paypal_address)              return c.redirect('/');
+  if (method === 'bankpay' && !bank.ready)                    return c.redirect('/');
 
   const priced = await priceOrder({ product, qty, option });
   const cust = await customerFrom(readCustomerCookie(c));
@@ -224,7 +242,78 @@ checkoutRoutes.post('/checkout', async (c) => {
     sendMailSafe({ to: order.cust_email, ...t });
   }
 
+  /* Pay by bank hands straight off to the bank's own approval screen. */
+  if (method === 'bankpay') {
+    try {
+      const base = (s.site_url || '').replace(/\/$/, '') ||
+                   new URL(c.req.url).origin;
+      const { id, redirect } = await createBankPayment({
+        order, returnUrl: `${base}/pay/bank/return?ref=${order.ref}`,
+      });
+      await q('update orders set provider_ref = $1 where id = $2', [id, order.id]);
+      return c.redirect(redirect);
+    } catch (e) {
+      console.error('[pay-bank]', e.message);
+      await q('insert into order_events (order_id, label, detail) values ($1,$2,$3)',
+              [order.id, 'Pay by bank unavailable', 'Fell back to manual transfer']);
+      await q(`update orders set method='bank' where id=$1`, [order.id]);
+      return c.redirect(`/order/${order.ref}?e=` +
+        encodeURIComponent('Pay by bank was unavailable — use the transfer details below.'));
+    }
+  }
+
   return c.redirect('/order/' + order.ref);
+});
+
+/* Restart an unfinished bank payment. */
+checkoutRoutes.post('/pay/bank/retry', async (c) => {
+  const f = await c.req.parseBody();
+  const ref = String(f.ref || '').toUpperCase();
+  const order = await one('select * from orders where ref = $1', [ref]);
+  if (!order || order.status === 'paid') return c.redirect('/order/' + ref);
+  const s = await getSettings();
+  try {
+    const base = (s.site_url || '').replace(/\/$/, '') || new URL(c.req.url).origin;
+    const { id, redirect } = await createBankPayment({
+      order, returnUrl: `${base}/pay/bank/return?ref=${order.ref}`,
+    });
+    await q('update orders set provider_ref = $1 where id = $2', [id, order.id]);
+    return c.redirect(redirect);
+  } catch (e) {
+    console.error('[pay-bank retry]', e.message);
+    return c.redirect(`/order/${ref}?e=` +
+      encodeURIComponent('Could not reach your bank just now. Try again shortly.'));
+  }
+});
+
+/* Where the bank sends the customer back to. The browser's word is not proof,
+   so we ask the provider what really happened before marking anything paid. */
+checkoutRoutes.get('/pay/bank/return', async (c) => {
+  const ref = String(c.req.query('ref') || '').toUpperCase();
+  const order = await one('select * from orders where ref = $1', [ref]);
+  if (!order) return c.notFound();
+
+  if (order.status !== 'paid' && order.provider_ref) {
+    const st = await bankPaymentStatus(order.provider_ref);
+    if (st && (st.settled || st.status === 'executed')) {
+      const paid = await one(
+        `update orders set status='paid', paid_at=now()
+          where id=$1 and status<>'paid' returning *`, [order.id]);
+      if (paid) {
+        await q('insert into order_events (order_id, label, detail) values ($1,$2,$3)',
+                [order.id, paid.is_deposit ? 'Deposit received' : 'Payment received',
+                 'Paid by bank · ' + st.status]);
+        const s = await getSettings();
+        if (paid.cust_email) {
+          sendMailSafe({ to: paid.cust_email, ...templates.paymentConfirmed(paid, s) });
+        }
+      }
+    } else if (st) {
+      await q('insert into order_events (order_id, label, detail) values ($1,$2,$3)',
+              [order.id, 'Bank payment ' + st.status, '']);
+    }
+  }
+  return c.redirect('/order/' + ref);
 });
 
 /* ---------------- order status / tracking ---------------- */
@@ -263,6 +352,9 @@ checkoutRoutes.get('/order/:ref', async (c) => {
         ${st.done && st.at ? `<div class="tm">${when(st.at)}</div>` : '<div class="tm">—</div>'}</div>
     </li>`).join('');
 
+  /* A pay-by-bank order that hasn't settled needs a way back to the bank,
+     not a list of account numbers to type. */
+  const retryBank = !paid && order.method === 'bankpay';
   const rows = order.method === 'ppff'
     ? [['Amount', '£' + money(order.total_p)],
        ['PayPal address', s.paypal_address],
@@ -304,7 +396,19 @@ checkoutRoutes.get('/order/:ref', async (c) => {
     </div></div>
   </div>` : ''}
 
-  ${paid ? '' : `
+  ${retryBank ? `
+  <div class="panel spot" style="margin-bottom:18px">
+    <div class="panel-h"><span class="hico" aria-hidden="true">${icon.bankpay}</span><h3>Pay by bank</h3></div>
+    <div class="panel-b">
+      <p style="margin:0 0 14px;color:var(--muted);font-size:13.5px">
+        We haven't seen this one land yet. If you didn't finish in your banking app,
+        pick up where you left off — it confirms itself the moment it clears.</p>
+      <form method="post" action="/pay/bank/retry"><input type="hidden" name="ref" value="${esc(order.ref)}">
+        <button class="btn" type="submit">${icon.bankpay} Continue in my bank</button></form>
+    </div>
+  </div>` : ''}
+
+  ${paid || retryBank ? '' : `
   <div class="plate hero">
     <div class="pk">Your payment reference</div>
     <div class="pv refOut">${esc(order.ref)}</div>
@@ -366,7 +470,8 @@ checkoutRoutes.get('/order/:ref', async (c) => {
   </p>
 </main>`;
 
-  return c.html(layout({ title: `Order ${order.ref}`, body, customer: cust, admin: c.get('admin') }));
+  return c.html(layout({ title: `Order ${order.ref}`, body, customer: cust,
+                         admin: c.get('admin'), settings: s }));
 });
 
 function flashMsg(c) {

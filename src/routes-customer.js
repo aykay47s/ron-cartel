@@ -2,7 +2,8 @@ import { Hono } from 'hono';
 import { q, one, many, getSettings } from './db.js';
 import {
   createCustomer, customerByEmail, customerLogin, customerLogout,
-  readCustomerCookie, setCustomerCookie, clearCustomerCookie, requireCustomer, throttle,
+  readCustomerCookie, setCustomerCookie, clearCustomerCookie, requireCustomer,
+  lockedOut, recordFailure, clearFailures,
 } from './auth.js';
 import { layout, esc, money, icon, flash, STATUS_LABEL } from './ui.js';
 
@@ -15,6 +16,7 @@ const box = (inner) =>
 
 /* ---------------- sign up ---------------- */
 customerRoutes.get('/signup', async (c) => {
+  const s = await getSettings();
   const body = box(`
     <p class="eyebrow" style="margin:0 0 9px">Create an account</p>
     <h1 class="display" style="font-size:clamp(25px,3.3vw,34px)">Track your <span class="lit">orders</span></h1>
@@ -37,7 +39,7 @@ customerRoutes.get('/signup', async (c) => {
       <p style="text-align:center;margin:14px 0 0;font-size:13.5px;color:var(--muted)">
         Already have one? <a href="/signin" style="color:var(--volt-2);font-weight:700">Sign in</a></p>
     </form>`);
-  return c.html(layout({ title: 'Create an account', body, customer: c.get('customer') }));
+  return c.html(layout({ title: 'Create an account', body, customer: c.get('customer') , settings: s }));
 });
 
 customerRoutes.post('/signup', async (c) => {
@@ -70,6 +72,7 @@ customerRoutes.post('/signup', async (c) => {
 
 /* ---------------- sign in ---------------- */
 customerRoutes.get('/signin', async (c) => {
+  const s = await getSettings();
   const body = box(`
     <p class="eyebrow" style="margin:0 0 9px">Welcome back</p>
     <h1 class="display" style="font-size:clamp(25px,3.3vw,34px)">Sign <span class="lit">in</span></h1>
@@ -85,16 +88,21 @@ customerRoutes.get('/signin', async (c) => {
         No account? <a href="/signup" style="color:var(--volt-2);font-weight:700">Create one</a>
         &nbsp;·&nbsp; <a href="/track" style="color:var(--volt-2);font-weight:700">Track without one</a></p>
     </form>`);
-  return c.html(layout({ title: 'Sign in', body, customer: c.get('customer') }));
+  return c.html(layout({ title: 'Sign in', body, customer: c.get('customer') , settings: s }));
 });
 
 customerRoutes.post('/signin', async (c) => {
   const f = await c.req.parseBody();
-  if (!throttle('cust:' + ip(c), 10, 15 * 60_000)) {
-    return c.redirect('/signin?e=' + encodeURIComponent('Too many tries. Wait a few minutes.'));
+  const who = 'cust:' + ip(c);
+  if (lockedOut(who)) {
+    return c.redirect('/signin?e=' + encodeURIComponent('Too many wrong tries. Wait a few minutes.'));
   }
   const sess = await customerLogin(String(f.email || ''), String(f.password || ''));
-  if (!sess) return c.redirect('/signin?e=' + encodeURIComponent('That email and password do not match.'));
+  if (!sess) {
+    recordFailure(who);
+    return c.redirect('/signin?e=' + encodeURIComponent('That email and password do not match.'));
+  }
+  clearFailures(who);
   setCustomerCookie(c, sess.token, sess.expires);
   const next = String(f.next || '/account');
   return c.redirect(next.startsWith('/') ? next : '/account');
@@ -110,6 +118,7 @@ customerRoutes.post('/signout', async (c) => {
 /* ---------------- account ---------------- */
 customerRoutes.get('/account', requireCustomer, async (c) => {
   const cust = c.get('customer');
+  const s = await getSettings();
   const orders = await many(
     `select * from orders where customer_id = $1 order by created_at desc`, [cust.id]);
 
@@ -137,11 +146,12 @@ customerRoutes.get('/account', requireCustomer, async (c) => {
       <div class="panel-b"><div class="ordlist">${rows}</div></div>
     </div>
   </main>`;
-  return c.html(layout({ title: 'Your account', body, customer: cust }));
+  return c.html(layout({ title: 'Your account', body, customer: cust , settings: s }));
 });
 
 /* ---------------- track without an account ---------------- */
 customerRoutes.get('/track', async (c) => {
+  const s = await getSettings();
   const body = box(`
     <p class="eyebrow" style="margin:0 0 9px">Order tracking</p>
     <h1 class="display" style="font-size:clamp(25px,3.3vw,34px)">Where's my <span class="lit">order</span></h1>
@@ -153,7 +163,7 @@ customerRoutes.get('/track', async (c) => {
                style="font-family:var(--mono);font-size:18px;letter-spacing:.16em;text-transform:uppercase"></div>
       <button class="btn wide" type="submit">Find it</button>
     </form>`);
-  return c.html(layout({ title: 'Track your order', body, customer: c.get('customer') }));
+  return c.html(layout({ title: 'Track your order', body, customer: c.get('customer') , settings: s }));
 });
 
 customerRoutes.get('/track/go', async (c) => {

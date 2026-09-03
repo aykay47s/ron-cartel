@@ -9,6 +9,7 @@ import { publicRoutes } from './routes-public.js';
 import { checkoutRoutes } from './routes-checkout.js';
 import { adminRoutes } from './routes-admin.js';
 import { customerRoutes } from './routes-customer.js';
+import { legalRoutes } from './routes-legal.js';
 import { layout, icon } from './ui.js';
 
 const app = new Hono();
@@ -58,6 +59,7 @@ app.get('/healthz', (c) => c.text('ok'));
 
 app.route('/', adminRoutes);
 app.route('/', customerRoutes);
+app.route('/', legalRoutes);
 app.route('/', checkoutRoutes);
 app.route('/', publicRoutes);
 

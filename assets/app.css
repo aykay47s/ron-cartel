@@ -78,7 +78,7 @@ button,input,select{font:inherit;color:inherit}
 .page{position:relative;z-index:1}
 
 /* ---------- type ---------- */
-.eyebrow{font-family:var(--mono);font-size:10.5px;font-weight:500;letter-spacing:.22em;
+.eyebrow{font-size:11px;font-weight:700;letter-spacing:.06em;
          text-transform:uppercase;color:var(--faint)}
 .display{font-weight:800;font-stretch:112%;letter-spacing:-.038em;line-height:.92;
          margin:0;font-size:clamp(36px,6vw,72px);text-wrap:balance}
@@ -87,7 +87,12 @@ button,input,select{font:inherit;color:inherit}
 h2.sect{font-size:clamp(21px,2.6vw,30px);font-weight:800;font-stretch:112%;
         letter-spacing:-.022em;margin:0}
 .lede{color:var(--muted);font-size:15px;max-width:52ch;margin:14px 0 0;line-height:1.6}
-.num{font-family:var(--mono);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.num{font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+/* prices and totals are set in the display face with lining figures — a
+   monospace price tag is a dashboard, not a shop */
+.li-p,.sum-row b,.sum-total .amt,.card .price,.buy .price,.buy .was,
+.spec .v,.stat .v,.amtc,.prow .pr,.oprice,.readout .v,.qty .n{
+  font-variant-numeric:tabular-nums lining-nums}
 
 /* ---------- chrome ---------- */
 .topbar{position:sticky;top:0;z-index:40;border-bottom:1px solid var(--edge-2);
@@ -128,12 +133,14 @@ h2.sect{font-size:clamp(21px,2.6vw,30px);font-weight:800;font-stretch:112%;
 .panel-h{padding:16px 20px;border-bottom:1px solid var(--edge-2);
          display:flex;align-items:center;gap:10px}
 .panel-h h3{margin:0;font-size:13.5px;font-weight:700;letter-spacing:-.005em;
-            text-transform:uppercase;font-family:var(--mono);
+            text-transform:uppercase;
             letter-spacing:.08em;color:var(--muted)}
 /* icons sit on the surface, not in their own tinted tile */
 .panel-h .hico{width:15px;height:15px;display:grid;place-items:center;
                color:var(--ghost);flex:none;margin-top:-1px}
 .panel-b{padding:20px}
+.panel-b.rows-flush{padding:0 0 2px}
+.panel-b.rows-flush .opt{padding-left:20px;padding-right:20px}
 .link-btn{margin-left:auto;background:none;border:none;padding:8px 4px;cursor:pointer;
           font-size:12.5px;font-weight:600;color:var(--muted);font-family:inherit;
           min-height:38px;text-decoration:underline;text-underline-offset:3px;
@@ -146,37 +153,36 @@ h2.sect{font-size:clamp(21px,2.6vw,30px);font-weight:800;font-stretch:112%;
 .spot{position:relative}
 
 /* ---------- selectable options ---------- */
-.opt{position:relative;display:flex;align-items:center;gap:14px;padding:15px 16px;
-     border:1px solid var(--edge);border-radius:var(--r);background:var(--surface-2);
-     cursor:pointer;margin-bottom:10px;min-height:44px;
-     transition:border-color .18s var(--ease),background .18s,transform .18s var(--ease)}
-.opt:last-child{margin-bottom:0}
-.opt:hover{border-color:rgba(255,255,255,.18)}
+/* A printed price list, not a stack of component-library cards. Rows are
+   separated by a hairline; the chosen one is marked by a heavy rule down
+   its left edge and by its text coming up to full strength. */
+.opt{position:relative;display:flex;align-items:center;gap:14px;
+     padding:16px 16px 16px 18px;border:0;border-bottom:1px solid var(--edge-2);
+     border-radius:0;background:none;cursor:pointer;margin:0;min-height:44px;
+     transition:background .16s}
+.opt:last-child{border-bottom:0}
+.opt:hover{background:rgba(237,233,227,.028)}
 .opt input{position:absolute;opacity:0;width:1px;height:1px}
-.opt.sel{border-color:var(--blood-line);background:var(--surface-3);
-  box-shadow:inset 3px 0 0 var(--blood)}
+.opt.sel{background:rgba(237,233,227,.035);box-shadow:inset 3px 0 0 var(--blood)}
 .opt:has(input:focus-visible){outline:2px solid var(--blood-2);outline-offset:2px}
 
-.dot{width:19px;height:19px;border-radius:50%;border:1.6px solid #4A525C;flex:none;
-     display:grid;place-items:center;transition:border-color .2s}
-.opt.sel .dot{border-color:var(--blood)}
-.dot i{width:9px;height:9px;border-radius:50%;background:var(--blood);
-       transform:scale(0);transition:transform .18s var(--ease-out)}
-.opt.sel .dot i{transform:scale(1)}
+.dot{display:none}
 
 /* bare icon, no tinted tile behind it */
 .oico{width:20px;height:20px;flex:none;display:grid;place-items:center;
       color:var(--faint);transition:color .16s}
 .opt.sel .oico{color:var(--text)}
 .otxt{flex:1;min-width:0}
-.otxt .t{font-weight:700;font-size:14.5px;letter-spacing:-.012em;
-         display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.otxt .s{font-size:12.5px;color:var(--muted);margin-top:2px;line-height:1.45}
-.oprice{margin-left:auto;padding-left:12px;font-weight:800;font-size:14.5px;
-        white-space:nowrap;font-family:var(--mono);letter-spacing:-.03em}
+.otxt .t{font-weight:700;font-size:15px;letter-spacing:-.015em;color:var(--muted);
+         display:flex;align-items:center;gap:8px;flex-wrap:wrap;transition:color .16s}
+.opt.sel .otxt .t{color:var(--text)}
+.otxt .s{font-size:12.5px;color:var(--faint);margin-top:2px;line-height:1.45}
+.oprice{margin-left:auto;padding-left:12px;font-weight:700;font-size:15px;
+        white-space:nowrap;letter-spacing:-.02em;color:var(--muted);transition:color .16s}
+.opt.sel .oprice{color:var(--text)}
 .oprice.free{color:var(--go)}
 
-.tag{font-family:var(--mono);font-size:9.5px;font-weight:700;letter-spacing:.11em;
+.tag{font-size:9.5px;font-weight:700;letter-spacing:.11em;
      text-transform:uppercase;padding:3.5px 7px;border-radius:5px;
      background:var(--surface-3);color:var(--muted);border:1px solid var(--edge-2)}
 .tag.hot{background:transparent;color:var(--blood-2);border-color:var(--blood-line)}
@@ -188,14 +194,14 @@ h2.sect{font-size:clamp(21px,2.6vw,30px);font-weight:800;font-stretch:112%;
         border:1px solid var(--edge-2);display:none}
 .detail.on{display:block;animation:drop .32s var(--ease-out)}
 @keyframes drop{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
-.detail h4{margin:0 0 13px;font-family:var(--mono);font-size:10.5px;font-weight:500;
+.detail h4{margin:0 0 13px;font-size:10.5px;font-weight:500;
            letter-spacing:.17em;text-transform:uppercase;color:var(--faint)}
 
 .rows{display:grid;gap:8px}
 .row-f{display:flex;align-items:center;gap:12px;padding:11px 13px;border-radius:var(--r-sm);
        background:var(--surface-2);border:1px solid var(--edge-2)}
 .row-f .k{font-size:12.5px;color:var(--muted);min-width:112px;flex:none;font-weight:500}
-.row-f .v{font-family:var(--mono);font-size:13.5px;font-weight:500;flex:1;min-width:0;
+.row-f .v{font-size:13.5px;font-weight:500;flex:1;min-width:0;
           overflow-wrap:anywhere}
 .row-f .v.big{font-size:15px;font-weight:700}
 
@@ -257,15 +263,15 @@ h2.sect{font-size:clamp(21px,2.6vw,30px);font-weight:800;font-stretch:112%;
   border:1px solid var(--edge);display:grid;place-items:center;color:var(--ghost)}
 .li-t{font-weight:700;font-size:13.5px;line-height:1.35;letter-spacing:-.012em}
 .li-s{font-size:12px;color:var(--muted);margin-top:3px}
-.li-p{margin-left:auto;font-weight:700;font-size:13.5px;font-family:var(--mono);
+.li-p{margin-left:auto;font-weight:700;font-size:13.5px;
       white-space:nowrap;letter-spacing:-.03em}
 .sum-row{display:flex;justify-content:space-between;align-items:center;
          font-size:13.5px;color:var(--muted);padding:6px 0}
-.sum-row b{color:var(--text);font-weight:700;font-family:var(--mono);letter-spacing:-.03em}
+.sum-row b{color:var(--text);font-weight:700;letter-spacing:-.03em}
 .sum-total{display:flex;justify-content:space-between;align-items:flex-end;
            margin-top:13px;padding-top:15px;border-top:1px solid var(--edge)}
 .sum-total .lbl{font-weight:800;font-size:15px}
-.sum-total .amt{font-family:var(--mono);font-weight:600;font-size:32px;
+.sum-total .amt{font-weight:600;font-size:32px;
   letter-spacing:-.05em;line-height:1;color:var(--text)}
 .bump{animation:none}
 
@@ -279,7 +285,7 @@ h2.sect{font-size:clamp(21px,2.6vw,30px);font-weight:800;font-stretch:112%;
      color:var(--ghost);letter-spacing:-.01em}
 .stp .n{width:25px;height:25px;border-radius:50%;display:grid;place-items:center;
         font-size:11.5px;background:var(--surface-2);border:1.5px solid var(--edge);
-        font-family:var(--mono);font-weight:700}
+        font-weight:700}
 .stp.done{color:var(--muted)}
 .stp.done .n{background:var(--go-dim);border-color:rgba(52,211,153,.4);color:var(--go)}
 .stp.now{color:var(--text)}
@@ -318,7 +324,7 @@ h2.sect{font-size:clamp(21px,2.6vw,30px);font-weight:800;font-stretch:112%;
 .readout{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:16px}
 .readout div{display:flex;flex-direction:column;align-items:center;gap:2px;
   padding:9px 15px;border-radius:11px;border:1px solid var(--edge);background:var(--surface)}
-.readout .v{font-family:var(--mono);font-size:15px;font-weight:600;letter-spacing:-.03em;
+.readout .v{font-size:15px;font-weight:600;letter-spacing:-.03em;
   color:var(--text)}
 .readout .k{font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:var(--faint)}
 
@@ -355,7 +361,6 @@ h2.sect{font-size:clamp(21px,2.6vw,30px);font-weight:800;font-stretch:112%;
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}
 @media (max-width:560px){.grid2{grid-template-columns:1fr}}
 
-
 /* ============================================================
    THE BIKE — cut-out photo of the real Light Bee X
    ============================================================ */
@@ -382,7 +387,7 @@ h2.sect{font-size:clamp(21px,2.6vw,30px);font-weight:800;font-stretch:112%;
 .hero .display{margin-bottom:16px}
 .hero-cta{display:flex;gap:11px;margin-top:24px;flex-wrap:wrap}
 .specs{display:flex;gap:26px;margin-top:30px;flex-wrap:wrap}
-.spec .v{font-family:var(--mono);font-size:24px;font-weight:600;letter-spacing:-.045em;
+.spec .v{font-size:24px;font-weight:600;letter-spacing:-.045em;
   color:var(--text)}
 .spec .k{font-size:11.5px;color:var(--faint);margin-top:2px;font-weight:600}
 /* A single warm floor-light under the bike, the way a bike looks in a unit
@@ -419,7 +424,7 @@ h2.sect{font-size:clamp(21px,2.6vw,30px);font-weight:800;font-stretch:112%;
 .card .art>img{width:100%;height:100%;object-fit:cover;position:absolute;inset:0;
   transition:transform .5s var(--ease)}
 .card:hover .art>img{transform:scale(1.03)}
-.badge{position:absolute;top:12px;left:12px;z-index:2;font-family:var(--mono);
+.badge{position:absolute;top:12px;left:12px;z-index:2;
   font-size:9.5px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;
   padding:5px 9px;border-radius:6px;backdrop-filter:blur(10px)}
 .badge.stock{background:rgba(10,11,12,.72);color:var(--go);border:1px solid rgba(52,211,153,.34)}
@@ -431,7 +436,7 @@ h2.sect{font-size:clamp(21px,2.6vw,30px);font-weight:800;font-stretch:112%;
 .card h3{margin:0 0 4px;font-size:15px;font-weight:700;letter-spacing:-.02em;line-height:1.3}
 .card .meta{font-size:12.5px;color:var(--muted);margin-bottom:14px}
 .card .foot{margin-top:auto;display:flex;align-items:center;gap:10px}
-.card .price{font-family:var(--mono);font-weight:700;font-size:19px;letter-spacing:-.04em}
+.card .price{font-weight:700;font-size:19px;letter-spacing:-.04em}
 .card .price s{color:var(--ghost);font-size:13px;font-weight:400;margin-right:6px}
 .card .go{margin-left:auto;width:36px;height:36px;border-radius:8px;flex:none;
   background:transparent;border:1px solid var(--edge);display:grid;place-items:center;
@@ -445,15 +450,15 @@ footer.f{border-top:1px solid var(--edge-2);padding:30px 0 46px;color:var(--fain
 @media (max-width:940px){.pdp{grid-template-columns:1fr;gap:24px;padding-top:20px}}
 .pdp .stage{aspect-ratio:16/11;display:grid;place-items:center;padding:22px}
 .buy .price-row{display:flex;align-items:baseline;gap:12px;margin:14px 0 6px;flex-wrap:wrap}
-.buy .price{font-family:var(--mono);font-weight:600;font-size:40px;letter-spacing:-.05em;
+.buy .price{font-weight:600;font-size:40px;letter-spacing:-.05em;
   color:var(--text)}
-.buy .was{font-family:var(--mono);color:var(--ghost);text-decoration:line-through;font-size:17px}
+.buy .was{color:var(--ghost);text-decoration:line-through;font-size:17px}
 .qty{display:flex;align-items:center;border:1px solid var(--edge);border-radius:var(--r-sm);
      background:var(--surface-2);overflow:hidden;width:max-content}
 .qty button{width:46px;height:46px;background:none;border:none;color:var(--muted);
             cursor:pointer;font-size:19px}
 .qty button:hover{background:var(--surface-3);color:var(--text)}
-.qty .n{width:52px;text-align:center;font-family:var(--mono);font-weight:700;font-size:15px;
+.qty .n{width:52px;text-align:center;font-weight:700;font-size:15px;
   background:none;border:none;min-height:auto;padding:0;color:var(--text)}
 .buyrow{display:flex;gap:11px;margin-top:22px;flex-wrap:wrap}
 .buyrow .btn{flex:0 1 auto}
@@ -466,7 +471,7 @@ footer.f{border-top:1px solid var(--edge-2);padding:30px 0 46px;color:var(--fain
 .fact[open] summary .cv{transform:rotate(180deg)}
 .fact .in{padding:0 2px 16px;color:var(--muted);font-size:13.5px;line-height:1.65}
 .spectable{display:grid;grid-template-columns:auto 1fr;gap:8px 20px;font-size:13px}
-.spectable dt{color:var(--faint)} .spectable dd{margin:0;font-family:var(--mono);color:var(--text)}
+.spectable dt{color:var(--faint)} .spectable dd{margin:0;color:var(--text)}
 
 .co{display:grid;grid-template-columns:minmax(0,1fr) 372px;gap:30px;
     align-items:start;padding:30px 0 48px}
@@ -514,7 +519,7 @@ footer.f{border-top:1px solid var(--edge-2);padding:30px 0 46px;color:var(--fain
 .prow .th img{width:100%;height:100%;object-fit:cover}
 .prow .nm{font-weight:700;font-size:14px;letter-spacing:-.015em}
 .prow .bl{font-size:12.5px;color:var(--muted);margin-top:2px}
-.prow .pr{font-family:var(--mono);font-weight:700;font-size:14.5px;margin-left:auto;
+.prow .pr{font-weight:700;font-size:14.5px;margin-left:auto;
           white-space:nowrap;letter-spacing:-.03em}
 .prow .acts{display:flex;gap:7px;flex:none}
 .iconbtn{width:38px;height:38px;border-radius:9px;border:1px solid var(--edge);
@@ -530,9 +535,9 @@ footer.f{border-top:1px solid var(--edge-2);padding:30px 0 46px;color:var(--fain
    of each one was decoration standing in for hierarchy. */
 .stat{position:relative;padding:18px 18px 20px;border-radius:var(--r);
   border:1px solid var(--edge);background:var(--surface)}
-.stat .k{font-family:var(--mono);font-size:10px;letter-spacing:.14em;
+.stat .k{font-size:10px;letter-spacing:.14em;
   text-transform:uppercase;color:var(--faint);font-weight:500}
-.stat .v{font-family:var(--mono);font-size:30px;font-weight:600;letter-spacing:-.05em;
+.stat .v{font-size:30px;font-weight:600;letter-spacing:-.05em;
   margin-top:10px;color:var(--text)}
 /* Only the one number that wants chasing is coloured. A lifetime order
    count is not a warning. */
@@ -549,7 +554,7 @@ footer.f{border-top:1px solid var(--edge-2);padding:30px 0 46px;color:var(--fain
             color:var(--ghost);pointer-events:none}
 .search input{width:100%;min-height:48px;padding:13px 14px 13px 42px;border-radius:var(--r);
   border:1px solid var(--edge);background:var(--surface);color:var(--text);
-  font-family:var(--mono);font-size:14px;letter-spacing:.05em;outline:none;
+  font-size:14px;letter-spacing:.05em;outline:none;
   transition:border-color .2s,box-shadow .2s}
 .search input:focus{border-color:var(--blood-line);box-shadow:0 0 0 4px var(--blood-dim)}
 .search input::placeholder{font-family:var(--sans);letter-spacing:0;color:var(--ghost)}
@@ -561,7 +566,7 @@ footer.f{border-top:1px solid var(--edge-2);padding:30px 0 46px;color:var(--fain
 
 .th-row,.tr{display:grid;grid-template-columns:140px minmax(0,1fr) 110px 130px 136px;
             gap:15px;align-items:center;padding:14px 18px}
-.th-row{border-bottom:1px solid var(--edge);font-family:var(--mono);font-size:10px;
+.th-row{border-bottom:1px solid var(--edge);font-size:10px;
     letter-spacing:.16em;text-transform:uppercase;color:var(--ghost)}
 .tr{border-bottom:1px solid var(--edge-2);position:relative;transition:background .18s}
 .tr:last-child{border-bottom:none}
@@ -577,7 +582,7 @@ footer.f{border-top:1px solid var(--edge-2);padding:30px 0 46px;color:var(--fain
 .item{font-size:12.5px;color:var(--muted);margin-top:2px}
 .via{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:var(--faint);
      margin-top:5px}
-.amtc{font-family:var(--mono);font-weight:700;font-size:14px;letter-spacing:-.03em}
+.amtc{font-weight:700;font-size:14px;letter-spacing:-.03em}
 .pill{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;
       padding:5px 11px;border-radius:99px;white-space:nowrap;border:1px solid transparent}
 .pill i{width:6px;height:6px;border-radius:50%;background:currentColor;flex:none}
@@ -617,12 +622,12 @@ input[type=checkbox]{accent-color:var(--blood)}
 .track li.on::before{background:var(--go)}
 .track .dotr{width:28px;height:28px;border-radius:50%;flex:none;display:grid;place-items:center;
   background:var(--surface-2);border:1.5px solid var(--edge);color:var(--faint);
-  font-family:var(--mono);font-size:12px;font-weight:700;position:relative;z-index:1}
+  font-size:12px;font-weight:700;position:relative;z-index:1}
 .track li.on .dotr{background:var(--go-dim);border-color:rgba(52,211,153,.45);color:var(--go)}
 .track .lb{font-weight:700;font-size:14px;letter-spacing:-.012em}
 .track li.on .lb{color:var(--text)}
 .track li:not(.on) .lb{color:var(--faint)}
-.track .tm{font-family:var(--mono);font-size:11.5px;color:var(--faint);margin-top:2px}
+.track .tm{font-size:11.5px;color:var(--faint);margin-top:2px}
 
 /* uploaded proof thumbnails */
 .proofs{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;
@@ -632,12 +637,12 @@ input[type=checkbox]{accent-color:var(--blood)}
 .proof:hover{border-color:rgba(255,255,255,.18)}
 .proof img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block}
 .proof span{display:block;padding:7px 9px;font-size:11px;color:var(--muted);
-            font-family:var(--mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+            overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 /* written history */
 .hist{margin-top:16px;padding-top:14px;border-top:1px solid var(--edge-2);display:grid;gap:9px}
 .ev{display:flex;gap:11px;align-items:baseline;flex-wrap:wrap;font-size:13px}
-.ev .tm{font-family:var(--mono);font-size:11.5px;color:var(--ghost);min-width:96px}
+.ev .tm{font-size:11.5px;color:var(--ghost);min-width:96px}
 .ev .lb{font-weight:700}
 .ev .dt{color:var(--muted);font-size:12.5px}
 
@@ -647,7 +652,7 @@ input[type=checkbox]{accent-color:var(--blood)}
                 gap:34px}
 @media (max-width:720px){.sitefoot .cols{grid-template-columns:1fr;gap:26px}}
 .sitefoot .addr{color:var(--muted);font-size:13px;line-height:1.7;margin:0}
-.sitefoot .ft{font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;
+.sitefoot .ft{font-size:10px;letter-spacing:.18em;text-transform:uppercase;
               color:var(--faint);margin-bottom:12px}
 .sitefoot a{display:block;color:var(--muted);font-size:13.5px;padding:4px 0;transition:color .15s}
 .sitefoot a:hover{color:var(--text)}
@@ -671,3 +676,74 @@ input[type=checkbox]{accent-color:var(--blood)}
 
 /* the single honest reassurance line under the order button */
 .hold-note{margin:14px 0 0;font-size:12.5px;line-height:1.55;color:var(--faint)}
+
+/* ============================================================
+   GUIDED SETUP  ·  DELIVERY EDITOR
+   ============================================================ */
+
+/* three cards at the top of settings, for the three things that need
+   explaining rather than listing */
+.setup-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  gap:12px;margin-bottom:22px}
+.setup-card{display:grid;gap:3px;padding:16px 17px 15px;border:1px solid var(--edge);
+  border-radius:var(--r);background:var(--surface);transition:border-color .18s}
+.setup-card:hover{border-color:rgba(237,233,227,.2)}
+.setup-card .sc-ico{color:var(--faint);margin-bottom:5px}
+.setup-card .sc-t{font-weight:700;font-size:14.5px;letter-spacing:-.015em}
+.setup-card .sc-s{font-size:12.5px;color:var(--muted);overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.setup-card .sc-go{font-size:12.5px;font-weight:700;color:var(--blood-2);margin-top:6px}
+
+/* a numbered step. three of them, never more */
+.step{display:flex;gap:16px;padding:22px 0;border-bottom:1px solid var(--edge-2)}
+.step:last-child{border-bottom:0}
+.step-n{width:30px;height:30px;border-radius:50%;flex:none;display:grid;
+  place-items:center;font-weight:700;font-size:13.5px;
+  border:1px solid var(--edge);color:var(--muted);background:var(--surface)}
+.step.done .step-n{background:var(--blood);border-color:transparent;color:#FFF3F2}
+.step-b{flex:1;min-width:0;max-width:660px}
+.step-b h3{margin:3px 0 10px;font-size:17px;font-weight:700;letter-spacing:-.02em}
+.step-b p{margin:0 0 12px;color:var(--muted);font-size:14px;line-height:1.6}
+.step-b p strong{color:var(--text)}
+
+/* provider picker on the email page */
+.pickrow{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:9px}
+.pick{display:flex;align-items:center;gap:10px;padding:13px 14px;border-radius:var(--r);
+  border:1px solid var(--edge);background:var(--surface);font-size:13.5px;font-weight:600;
+  color:var(--muted);transition:.16s}
+.pick:hover{color:var(--text);border-color:rgba(237,233,227,.2)}
+.pick.on{color:var(--text);border-color:var(--blood-line);background:var(--surface-3)}
+.pick svg{color:var(--faint);flex:none}
+
+/* delivery editor */
+.dlist{display:grid;gap:12px}
+.dopt{border:1px solid var(--edge);border-radius:var(--r);background:var(--surface);
+  overflow:hidden}
+.dopt-h{display:flex;align-items:center;gap:10px;padding:13px 16px;flex-wrap:wrap;
+  border-bottom:1px solid var(--edge-2)}
+.dopt-h strong{font-size:14.5px;letter-spacing:-.015em}
+.dopt .dico{color:var(--faint);flex:none;display:grid;place-items:center}
+.dopt .dprice{margin-left:auto;font-weight:700;font-size:14.5px;
+  font-variant-numeric:tabular-nums lining-nums}
+.dopt-b{padding:16px}
+.dopt-f{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-top:6px}
+.chk{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--muted);
+  cursor:pointer}
+.chk input{width:auto;min-height:auto;margin:0}
+.dopt-f .btn{margin-left:0}
+.dopt-f .btn:first-of-type{margin-left:auto}
+@media (max-width:640px){
+  .dopt-f{gap:10px}
+  .dopt-f .btn:first-of-type{margin-left:0}
+  .dopt-f .btn{flex:1 1 auto}
+}
+
+/* each delivery option is folded away until you open it — four expanded
+   forms stacked up is a page nobody reads */
+.dopt details{display:block}
+.dopt summary{list-style:none;cursor:pointer}
+.dopt summary::-webkit-details-marker{display:none}
+.dopt summary .dcv{color:var(--ghost);transition:transform .2s var(--ease);flex:none}
+.dopt details[open] summary .dcv{transform:rotate(180deg)}
+.dopt details[open] summary{border-bottom:1px solid var(--edge-2)}
+.dopt-h{border-bottom:0}

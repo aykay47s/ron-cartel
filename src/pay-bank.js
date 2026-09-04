@@ -72,7 +72,7 @@ function derToJose(der, size) {
   return Buffer.concat([pad(r), pad(s)]);
 }
 
-async function token(cfg) {
+export async function token(cfg) {
   const res = await fetch(`${cfg.hosts.auth}/connect/token`, {
     method: 'POST',
     headers: { 'content-type': 'application/x-www-form-urlencoded' },
@@ -150,4 +150,14 @@ export async function bankPaymentStatus(paymentId) {
   if (!res.ok) return null;
   const p = await res.json();
   return { status: p.status, settled: p.status === 'settled', raw: p };
+}
+
+/* Setup calls this to prove the keys work before a real customer ever hits
+   them. Saving credentials and discovering they are wrong at the first
+   checkout is the failure this exists to prevent. */
+export async function testBank() {
+  const cfg = await bankConfig();
+  if (!cfg.ready) throw new Error('Some of the TrueLayer fields are still blank.');
+  await token(cfg);
+  return { ok: true, env: cfg.env };
 }

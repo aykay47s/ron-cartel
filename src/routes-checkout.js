@@ -5,6 +5,7 @@ import { customerFrom, readCustomerCookie } from './auth.js';
 import { sendMailSafe, templates } from './mail.js';
 import { statusPill } from './routes-customer.js';
 import { bankConfig, createBankPayment, bankPaymentStatus } from './pay-bank.js';
+import { COURIERS, COUNTRIES, forCountry, leadTime, priceFor, reaches, countryName } from './shipping.js';
 
 export const checkoutRoutes = new Hono();
 
@@ -16,7 +17,10 @@ async function priceOrder({ product, qty, option }) {
   const unit_p = product.price_p;
   const subtotal_p = unit_p * qty;
   const isCollection = !!option?.is_collection;
-  const delivery_p = isCollection ? 0 : (option?.price_p ?? 0);
+  /* priceFor applies the option's own free-over-£X threshold. Like every
+     other number here it is worked out from the database, never from the
+     browser. */
+  const delivery_p = isCollection ? 0 : (option ? priceFor(option, subtotal_p) : 0);
   const depositOnly = isCollection && product.deposit_p != null && product.deposit_p > 0;
   const total_p = depositOnly ? product.deposit_p : subtotal_p + delivery_p;
   return { unit_p, subtotal_p, delivery_p, total_p, depositOnly };
@@ -37,22 +41,38 @@ checkoutRoutes.get('/checkout', async (c) => {
     return c.html(layout({ title: 'Checkout', body, admin: c.get('admin') , settings: s }), 404);
   }
 
-  const options = await many(
-    'select * from delivery_options where enabled order by position, id'
-  );
+  /* The customer's country decides what is even offered. Someone in Sydney
+     should never be shown "collect in Manchester". */
+  const country = String(c.req.query('to') || cust?.country || 'GB').toUpperCase();
+  const allOptions = await many('select * from delivery_options order by position, id');
+  const options = forCountry(allOptions, country);
   const bankReady = s.bank_sort && s.bank_number;
   const paypalReady = !!s.paypal_address;
 
-  const shipRows = options.map((o, i) => `
+  const subtotalNow = product.price_p * qty;
+  const shipRows = options.length ? options.map((o, i) => {
+    const p = o.is_collection ? 0 : priceFor(o, subtotalNow);
+    const sub = o.note || leadTime(o.days_min, o.days_max);
+    const carrier = COURIERS[o.courier];
+    return `
     <label class="opt${i === 0 ? ' sel' : ''}" data-ship="${o.id}"
-           data-price="${o.price_p}" data-collect="${o.is_collection ? 1 : 0}">
+           data-price="${p}" data-collect="${o.is_collection ? 1 : 0}">
       <input type="radio" name="delivery_id" value="${o.id}"${i === 0 ? ' checked' : ''}>
-      <span class="dot" aria-hidden="true"><i></i></span>
-      <span class="oico" aria-hidden="true"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13" rx="1.5"/><path d="M16 8h4l3 3v5h-7z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg></span>
+      <span class="oico" aria-hidden="true">${icon[carrier?.glyph || 'truck']}</span>
       <span class="otxt"><span class="t">${esc(o.label)}${o.is_collection ? ' <span class="tag">Deposit</span>' : ''}</span>
-        <span class="s">${esc(o.note)}</span></span>
-      <span class="oprice${o.price_p === 0 ? ' free' : ''}">${o.price_p === 0 ? 'Free' : '£' + money(o.price_p)}</span>
-    </label>`).join('');
+        <span class="s">${carrier && o.courier ? esc(carrier.name) + (sub ? ' · ' : '') : ''}${esc(sub)}</span></span>
+      <span class="oprice${p === 0 ? ' free' : ''}">${p === 0 ? 'Free' : '£' + money(p)}</span>
+    </label>`; }).join('')
+    : `<p class="hint" style="padding:18px 20px">Nothing ships to that country yet —
+       <a href="/contact" style="color:var(--blood-2)">get in touch</a> and we'll sort something.</p>`;
+
+  const countryPicker = `
+    <div class="field" style="margin-bottom:0"><label for="cc">Country</label>
+      <select id="cc" name="country" onchange="location.search='?id=${product.id}&qty=${qty}&to='+this.value">
+        ${COUNTRIES.map(([code, name]) =>
+          `<option value="${code}"${code === country ? ' selected' : ''}>${esc(name)}</option>`).join('')}
+      </select>
+      <div class="hint">Changes what delivery you can pick.</div></div>`;
 
   const bank = await bankConfig();
 
@@ -114,22 +134,25 @@ checkoutRoutes.get('/checkout', async (c) => {
         <div class="field"><label for="cp">Phone</label>
           <input id="cp" name="cust_phone" maxlength="30" autocomplete="tel"
                  value="${esc(cust?.phone || '')}"></div>
-        <div class="field"><label for="ad">Delivery address</label>
-          <textarea id="ad" name="address" required maxlength="400"
-            placeholder="Street, town, postcode" autocomplete="street-address">${esc(cust?.address || '')}</textarea></div>
+        <div class="grid2">
+          <div class="field"><label for="ad">Delivery address</label>
+            <textarea id="ad" name="address" required maxlength="400"
+              placeholder="Street, town, postcode" autocomplete="street-address">${esc(cust?.address || '')}</textarea></div>
+          ${countryPicker}
+        </div>
       </div>
     </section>
 
     <section class="panel spot rv" style="margin-bottom:18px">
       <div class="panel-h"><span class="hico" aria-hidden="true"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 3v5h-7z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg></span>
         <h3>How it gets to you</h3></div>
-      <div class="panel-b" id="ship">${shipRows}</div>
+      <div class="panel-b rows-flush" id="ship">${shipRows}</div>
     </section>
 
     <section class="panel spot rv">
       <div class="panel-h"><span class="hico" aria-hidden="true"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2.5"/><path d="M2 10h20"/></svg></span>
         <h3>Payment method</h3></div>
-      <div class="panel-b" id="pay">${payRows}</div>
+      <div class="panel-b rows-flush" id="pay">${payRows}</div>
     </section>
   </form>
 
@@ -199,7 +222,11 @@ checkoutRoutes.post('/checkout', async (c) => {
   if (!product || product.status !== 'stock') return c.redirect('/');
 
   const qty = clampQty(form.qty);
+  const country = String(form.country || 'GB').toUpperCase().slice(0, 2);
   const option = await one('select * from delivery_options where id = $1 and enabled', [form.delivery_id]);
+  /* The browser can post any option id it likes. Check the chosen one really
+     does reach the country on the order before pricing anything. */
+  if (option && !reaches(option.zone, country)) return c.redirect('/checkout?id=' + product.id + '&qty=' + qty);
   const s = await getSettings();
   const bank = await bankConfig();
   const asked = String(form.method || 'bank');
@@ -226,7 +253,8 @@ checkoutRoutes.post('/checkout', async (c) => {
          method, String(form.cust_name || '').slice(0, 80),
          String(form.cust_email || '').slice(0, 120),
          String(form.cust_phone || '').slice(0, 30),
-         String(form.address || '').slice(0, 400), cust ? cust.id : null]
+         (String(form.address || '').slice(0, 380)
+            + (country && country !== 'GB' ? '\n' + countryName(country) : '')), cust ? cust.id : null]
       );
     } catch (e) {
       if (!String(e.message).includes('orders_ref_key')) throw e;
@@ -241,9 +269,11 @@ checkoutRoutes.post('/checkout', async (c) => {
     await q(`update customers
                 set phone   = coalesce(nullif($1,''), phone),
                     address = coalesce(nullif($2,''), address),
-                    name    = coalesce(nullif(name,''), $3)
-              where id = $4`,
-            [order.cust_phone, order.address, order.cust_name, cust.id]).catch(() => {});
+                    name    = coalesce(nullif(name,''), $3),
+                    country = $4
+              where id = $5`,
+            [order.cust_phone, String(form.address || ''), order.cust_name, country, cust.id])
+      .catch(() => {});
   }
 
   await q('insert into order_events (order_id, label, detail) values ($1,$2,$3)',

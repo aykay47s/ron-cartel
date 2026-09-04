@@ -368,6 +368,30 @@ adminRoutes.get('/admin/settings', async (c) => {
   const body = adminShell('settings', `
     ${flash('info', c.req.query('ok') ? 'Settings saved.' : '')}
     ${flash('error', c.req.query('e'))}
+
+    <!-- The three things that need explaining rather than listing get their own
+         guided pages. Everything left on this page is a field you can just fill in. -->
+    <div class="setup-strip">
+      <a class="setup-card" href="/admin/setup/bank">
+        <span class="sc-ico">${icon.bankpay || icon.bank}</span>
+        <span class="sc-t">Pay by bank</span>
+        <span class="sc-s">${s.bank_pay_on ? 'On — customers can tap their bank' : 'Not set up yet'}</span>
+        <span class="sc-go">${s.bank_pay_on ? 'Change' : 'Set it up'} →</span>
+      </a>
+      <a class="setup-card" href="/admin/setup/email">
+        <span class="sc-ico">${icon.mail}</span>
+        <span class="sc-t">Order emails</span>
+        <span class="sc-s">${s.emails_on && s.smtp_host ? esc(s.smtp_user) : 'Not set up yet'}</span>
+        <span class="sc-go">${s.emails_on && s.smtp_host ? 'Change' : 'Set it up'} →</span>
+      </a>
+      <a class="setup-card" href="/admin/delivery">
+        <span class="sc-ico">${icon.truck}</span>
+        <span class="sc-t">Delivery</span>
+        <span class="sc-s">${opts.filter((o) => o.enabled).length} option${opts.filter((o) => o.enabled).length === 1 ? '' : 's'} showing at checkout</span>
+        <span class="sc-go">Edit →</span>
+      </a>
+    </div>
+
     <form method="post" action="/admin/settings">
       <div class="cols2">
         <section class="panel spot">
@@ -492,53 +516,6 @@ adminRoutes.get('/admin/settings', async (c) => {
         </div>
       </section>
 
-      <section class="panel spot" style="margin-top:18px">
-        <div class="panel-h"><span class="hico" aria-hidden="true">${icon.mail}</span><h3>Order emails</h3></div>
-        <div class="panel-b">
-          <label style="display:flex;gap:9px;align-items:center;margin-bottom:16px;font-size:13.5px">
-            <input type="checkbox" name="emails_on" ${s.emails_on ? 'checked' : ''} style="width:auto;min-height:auto">
-            Send order emails to customers</label>
-          <div class="grid2">
-            <div class="field"><label for="sh">SMTP host</label>
-              <input id="sh" name="smtp_host" value="${esc(s.smtp_host)}" placeholder="smtp-relay.brevo.com"></div>
-            <div class="field"><label for="sp">Port</label>
-              <input id="sp" name="smtp_port" value="${esc(s.smtp_port)}" inputmode="numeric" placeholder="587"></div>
-          </div>
-          <div class="grid2">
-            <div class="field"><label for="su">SMTP username</label>
-              <input id="su" name="smtp_user" value="${esc(s.smtp_user)}" autocomplete="off"></div>
-            <div class="field"><label for="sw">SMTP password / API key</label>
-              <input id="sw" name="smtp_pass" type="password" value="${esc(s.smtp_pass)}" autocomplete="off"></div>
-          </div>
-          <div class="field"><label for="sf">Send from</label>
-            <input id="sf" name="smtp_from" value="${esc(s.smtp_from)}" placeholder="orders@yourdomain.co.uk">
-            <div class="hint">Brevo gives 300 emails a day free. Without your own domain, verify a personal
-              address with them and use that — it works, it just looks less official.</div></div>
-        </div>
-      </section>
-
-      <section class="panel spot" style="margin-top:18px">
-        <div class="panel-h"><span class="hico" aria-hidden="true"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 3v5h-7z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg></span><h3>Delivery options</h3></div>
-        <div class="panel-b">
-          ${opts.map((o) => `
-            <div class="opt" style="cursor:default;align-items:flex-start">
-              <div style="flex:1;min-width:0">
-                <div class="grid2">
-                  <div class="field" style="margin-bottom:8px"><label>Label</label>
-                    <input name="d_label_${o.id}" value="${esc(o.label)}" maxlength="60"></div>
-                  <div class="field" style="margin-bottom:8px"><label>Price £</label>
-                    <input name="d_price_${o.id}" value="${money(o.price_p)}" inputmode="decimal"></div>
-                </div>
-                <div class="field" style="margin-bottom:0"><label>Note</label>
-                  <input name="d_note_${o.id}" value="${esc(o.note)}" maxlength="120"></div>
-                <label style="display:flex;gap:9px;align-items:center;margin-top:10px;font-size:13px;color:var(--muted)">
-                  <input type="checkbox" name="d_on_${o.id}" ${o.enabled ? 'checked' : ''} style="width:auto;min-height:auto">
-                  Show at checkout${o.is_collection ? ' · this is the collection option' : ''}</label>
-              </div>
-            </div>`).join('')}
-        </div>
-      </section>
-
       <button class="btn" type="submit" style="margin-top:20px">${icon.tick} Save settings</button>
     </form>
 
@@ -548,7 +525,7 @@ adminRoutes.get('/admin/settings', async (c) => {
         <form method="post" action="/admin/pin" style="max-width:340px">
           <div class="field"><label for="np">New PIN</label>
             <input id="np" name="pin" type="password" inputmode="numeric" minlength="4" required
-                   style="font-family:var(--mono);font-size:19px;letter-spacing:.3em;text-align:center">
+                   style="font-size:19px;letter-spacing:.3em;text-align:center">
             <div class="hint">Signs you out everywhere so the old PIN stops working.</div></div>
           <button class="btn ghost" type="submit">${icon.lock} Change PIN</button>
         </form>
@@ -560,40 +537,19 @@ adminRoutes.get('/admin/settings', async (c) => {
 
 adminRoutes.post('/admin/settings', async (c) => {
   const f = await c.req.parseBody();
-  await setSettings({
-    shop_name: f.shop_name, tagline: f.tagline, contact_email: f.contact_email,
-    bank_account_name: f.bank_account_name, bank_sort: f.bank_sort, bank_number: f.bank_number,
-    paypal_address: f.paypal_address, paypal_note: f.paypal_note,
-    collection_note: f.collection_note,
-    hold_hours: String(parseInt(f.hold_hours, 10) || 24),
-    smtp_host: f.smtp_host, smtp_port: f.smtp_port,
-    smtp_user: f.smtp_user, smtp_pass: f.smtp_pass, smtp_from: f.smtp_from,
-    emails_on: f.emails_on != null ? '1' : '',
-    legal_name: f.legal_name, trading_address: f.trading_address,
-    contact_phone: f.contact_phone, company_number: f.company_number,
-    vat_number: f.vat_number, site_url: f.site_url,
-    returns_days: String(parseInt(f.returns_days, 10) || 14),
-    returns_note: f.returns_note,
-    bank_pay_on: f.bank_pay_on != null ? '1' : '',
-    tl_env: f.tl_env === 'live' ? 'live' : 'sandbox',
-    tl_client_id: f.tl_client_id, tl_client_secret: f.tl_client_secret,
-    tl_kid: f.tl_kid, tl_private_key: f.tl_private_key, tl_merchant_id: f.tl_merchant_id,
-  });
-  /* Only touch a delivery option if this submission actually carried its
-     fields. Without that check, saving the settings form from anywhere that
-     omits them silently zeroes every price and disables the lot. */
-  const opts = await many('select id from delivery_options');
-  for (const o of opts) {
-    const label = f['d_label_' + o.id];
-    if (label == null) continue;
-    await q('update delivery_options set label=$1, note=$2, price_p=$3, enabled=$4 where id=$5', [
-      String(label).slice(0, 60) || 'Delivery',
-      String(f['d_note_' + o.id] || '').slice(0, 120),
-      pence(f['d_price_' + o.id]),
-      f['d_on_' + o.id] != null,
-      o.id,
-    ]);
-  }
+  /* Email, pay by bank and delivery are owned by their own guided pages now.
+     Only write a key this form actually carried, so saving the shop details
+     can never blank out something set up somewhere else. */
+  const patch = {};
+  const take = (k, v) => { if (f[k] !== undefined) patch[k] = v === undefined ? f[k] : v; };
+  for (const k of ['shop_name', 'tagline', 'contact_email',
+                   'bank_account_name', 'bank_sort', 'bank_number',
+                   'paypal_address', 'paypal_note', 'collection_note',
+                   'legal_name', 'trading_address', 'contact_phone',
+                   'company_number', 'vat_number', 'site_url', 'returns_note']) take(k);
+  if (f.hold_hours !== undefined) patch.hold_hours = String(parseInt(f.hold_hours, 10) || 24);
+  if (f.returns_days !== undefined) patch.returns_days = String(parseInt(f.returns_days, 10) || 14);
+  await setSettings(patch);
   return c.redirect('/admin/settings?ok=1');
 });
 
@@ -628,6 +584,7 @@ function adminShell(active, inner) {
     <div class="tabs" role="tablist">
       ${tab('/admin', 'orders', 'Orders', icon.bank)}
       ${tab('/admin/products', 'products', 'Products', icon.box)}
+      ${tab('/admin/delivery', 'delivery', 'Delivery', icon.truck)}
       ${tab('/admin/settings', 'settings', 'Settings', icon.cog)}
     </div>
     ${inner}

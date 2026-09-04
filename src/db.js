@@ -78,6 +78,14 @@ const MIGRATIONS = [
      enabled boolean not null default true,
      position int not null default 0
    )`,
+  /* Delivery grew up: who carries it, where it goes, how long it takes.
+     `zone` is 'GB', 'EU', 'WORLD' or a comma-separated ISO-2 list; checkout
+     only offers an option the customer's country is actually in. */
+  `alter table delivery_options add column if not exists courier text not null default ''`,
+  `alter table delivery_options add column if not exists zone text not null default 'GB'`,
+  `alter table delivery_options add column if not exists days_min int not null default 0`,
+  `alter table delivery_options add column if not exists days_max int not null default 0`,
+  `alter table delivery_options add column if not exists free_over_p int not null default 0`,
   `create table if not exists orders (
      id serial primary key,
      ref text unique not null,
@@ -148,6 +156,15 @@ const MIGRATIONS = [
    )`,
   `create index if not exists rate_hits_idx on rate_hits (bucket, at desc)`,
   `create index if not exists products_pos_idx on products (position, id)`,
+  `alter table customers add column if not exists country text not null default 'GB'`,
+  /* Shops seeded before couriers existed showed "No courier" against a row
+     that plainly said Royal Mail. Name them once; anything already set is
+     left alone. */
+  `update delivery_options set courier = 'royalmail'
+     where courier = '' and label ilike '%royal mail%'`,
+  `update delivery_options set courier = 'dpd'     where courier = '' and label ilike '%dpd%'`,
+  `update delivery_options set courier = 'evri'    where courier = '' and label ilike '%evri%'`,
+  `update delivery_options set courier = 'collect' where courier = '' and is_collection`,
 ];
 
 /* Sensible defaults so a fresh shop is usable before anything is configured. */
@@ -195,10 +212,10 @@ const DEFAULT_SETTINGS = {
 };
 
 const DEFAULT_DELIVERY = [
-  ['Royal Mail Tracked 24', 'Ordered before 2pm — arrives tomorrow, signed for', 699, false, 1],
-  ['DPD Next Day', 'Live tracking with a one-hour window', 999, false, 2],
-  ['Royal Mail Tracked 48', 'Two to three working days', 349, false, 3],
-  ['Collect in person', 'Free — a deposit reserves it', 0, true, 4],
+  ['Royal Mail Tracked 24', 'Ordered before 2pm — arrives tomorrow, signed for', 699, false, 1, 'royalmail', 'GB', 1, 1],
+  ['DPD Next Day', 'Live tracking with a one-hour window', 999, false, 2, 'dpd', 'GB', 1, 1],
+  ['Royal Mail Tracked 48', 'Two to three working days', 349, false, 3, 'royalmail', 'GB', 2, 3],
+  ['Collect in person', 'Free — a deposit reserves it', 0, true, 4, 'collect', 'GB', 0, 0],
 ];
 
 export async function migrate() {
@@ -214,11 +231,13 @@ export async function migrate() {
 
   const { rows } = await q('select count(*)::int as n from delivery_options');
   if (rows[0].n === 0) {
-    for (const [label, note, price_p, is_collection, position] of DEFAULT_DELIVERY) {
+    for (const [label, note, price_p, is_collection, position, courier, zone, dmin, dmax]
+         of DEFAULT_DELIVERY) {
       await q(
-        `insert into delivery_options (label, note, price_p, is_collection, position)
-         values ($1,$2,$3,$4,$5)`,
-        [label, note, price_p, is_collection, position]
+        `insert into delivery_options
+           (label, note, price_p, is_collection, position, courier, zone, days_min, days_max)
+         values ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+        [label, note, price_p, is_collection, position, courier, zone, dmin, dmax]
       );
     }
   }

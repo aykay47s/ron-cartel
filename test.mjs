@@ -307,6 +307,85 @@ jar = {};
   }
 }
 
+head('guided setup pages');
+{
+  await go('/admin/login', form({ pin: '778899' }));
+  for (const p of ['/admin/setup/bank', '/admin/setup/email', '/admin/delivery']) {
+    ok(`${p} loads`, (await go(p)).status === 200);
+  }
+  const saved = { ...jar }; jar = {};
+  const gated = await go('/admin/delivery');
+  jar = saved;
+  ok('setup pages are behind the admin gate',
+     gated.status === 302 && String(gated.loc).startsWith('/admin/login'), gated.status);
+}
+
+head('delivery options: add, edit, remove, and who they reach');
+{
+  /* This block stands on its own: it finds a live product itself rather than
+     leaning on one an earlier section may have deleted. */
+  const shop = await go('/');
+  const shipPid = (shop.text.match(/href="\/p\/(\d+)/) || [])[1];
+  const optIds = async () => [...(await go('/admin/delivery')).text
+    .matchAll(/action="\/admin\/delivery\/(\d+)"/g)].map((m) => m[1]);
+  const rows = async (to) => {
+    const r = await go(`/checkout?id=${shipPid}&qty=1&to=${to}`);
+    return [...r.text.matchAll(/<span class="t">([^<]*)/g)].map((m) => m[1].trim());
+  };
+
+  const n0 = (await optIds()).length;
+  await go('/admin/delivery', form({}));
+  const ids = await optIds();
+  ok('a new option is added', ids.length === n0 + 1, `${n0} -> ${ids.length}`);
+  const id = ids[ids.length - 1];
+
+  await go(`/admin/delivery/${id}`, form({
+    label: 'DHL Worldwide', courier: 'dhl', price: '44.00', free_over: '',
+    zone: 'WORLD', zone_list: '', days_min: '3', days_max: '7', note: '', enabled: 'on',
+  }));
+  const list = await go('/admin/delivery');
+  ok('the option saves', list.text.includes('DHL Worldwide'));
+  ok('an empty note is written from the lead time', list.text.includes('3 to 7 working days'));
+  ok('a worldwide option reaches Australia', (await rows('AU')).includes('DHL Worldwide'));
+
+  await go(`/admin/delivery/${id}`, form({
+    label: 'Manchester pickup', courier: 'collect', price: '0', free_over: '',
+    zone: 'GB', zone_list: '', days_min: '', days_max: '', note: '', enabled: 'on',
+  }));
+  ok('a UK-only option is hidden from a customer in the US',
+     !(await rows('US')).includes('Manchester pickup'));
+  ok('and shown to one in the UK',
+     (await rows('GB')).includes('Manchester pickup'), (await rows('GB')).join(' | '));
+
+  await go(`/admin/delivery/${id}`, form({
+    label: 'Hand-picked list', courier: 'dpd', price: '12.00', free_over: '',
+    zone: 'custom', zone_list: 'IE, FR', days_min: '2', days_max: '4', note: '', enabled: 'on',
+  }));
+  ok('a hand-picked country list reaches France', (await rows('FR')).includes('Hand-picked list'));
+  ok('and not Germany', !(await rows('DE')).includes('Hand-picked list'));
+
+  await go(`/admin/delivery/${id}/delete`, form({}));
+  ok('the option is removed', !(await go('/admin/delivery')).text.includes('Hand-picked list'));
+}
+
+head('free delivery over a threshold, decided on the server');
+{
+  const shop = await go('/');
+  const shipPid = (shop.text.match(/href="\/p\/(\d+)/) || [])[1];
+  const ids = [...(await go('/admin/delivery')).text
+    .matchAll(/action="\/admin\/delivery\/(\d+)"/g)].map((m) => m[1]);
+  await go(`/admin/delivery/${ids[0]}`, form({
+    label: 'Threshold test', courier: 'royalmail', price: '6.99', free_over: '100',
+    zone: 'GB', zone_list: '', days_min: '1', days_max: '', note: '', enabled: 'on',
+  }));
+  const r = await go(`/checkout?id=${shipPid}&qty=1&to=GB`);
+  const labels = [...r.text.matchAll(/<span class="t">([^<]*)/g)].map((m) => m[1].trim());
+  const prices = [...r.text.matchAll(/<span class="oprice[^"]*">([^<]*)/g)].map((m) => m[1].trim());
+  const i = labels.indexOf('Threshold test');
+  ok('an order over the threshold gets that option free', i >= 0 && prices[i] === 'Free',
+     `${labels[i]} = ${prices[i]}`);
+}
+
 head('session cookies survive plain HTTP');
 {
   const r = await fetch(B + '/admin/login', {

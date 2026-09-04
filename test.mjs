@@ -386,6 +386,43 @@ head('free delivery over a threshold, decided on the server');
      `${labels[i]} = ${prices[i]}`);
 }
 
+head('open banking (Crezco) setup and checkout');
+{
+  await go('/admin/login', form({ pin: '778899' }));
+  ok('/admin/setup/openbanking loads', (await go('/admin/setup/openbanking')).status === 200);
+
+  const bad = await go('/admin/setup/openbanking', form({ crezco_link: 'http://pay.example.com/x' }));
+  ok('a plain http link is refused', String(bad.loc).includes('e='), bad.loc);
+
+  await go('/admin/setup/openbanking', form({ crezco_link: 'https://pay.crezco.com/ron-cartel' }));
+  const shopNow = await go('/');
+  const obPid = (shopNow.text.match(/href="\/p\/(\d+)/) || [])[1];
+
+  let co = await go('/checkout?id=' + obPid + '&qty=1');
+  ok('it stays hidden until it is switched on', !co.text.includes('Pick your bank'));
+
+  await go('/admin/setup/openbanking/live', form({ on: '1' }));
+  co = await go('/checkout?id=' + obPid + '&qty=1');
+  ok('once on, it is offered first at checkout', co.text.includes('Pick your bank'));
+
+  const dIds = [...(await go('/admin/delivery')).text
+    .matchAll(/action="\/admin\/delivery\/(\d+)"/g)].map((m) => m[1]);
+  const placed = await go('/checkout', form({
+    id: obPid, qty: '1', delivery_id: dIds[0], method: 'crezco', country: 'GB',
+    cust_name: 'Ada Whyte', cust_email: 'ada@example.com', address: '1 Test St',
+  }));
+  ok('an order can be placed with it', placed.status === 302 && /\/order\//.test(String(placed.loc)),
+     placed.loc);
+  const page = await go(String(placed.loc));
+  ok('the order page sends them to their bank',
+     page.text.includes('Open my banking app') && page.text.includes('pay.crezco.com'));
+  ok('and still shows the reference to quote', page.text.includes('Your payment reference'));
+
+  await go('/admin/setup/openbanking/live', form({ on: '0' }));
+  const off = await go('/checkout?id=' + obPid + '&qty=1');
+  ok('turning it off removes it again', !off.text.includes('Pick your bank'));
+}
+
 head('session cookies survive plain HTTP');
 {
   const r = await fetch(B + '/admin/login', {

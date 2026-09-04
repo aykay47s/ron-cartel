@@ -112,7 +112,7 @@ adminRoutes.get('/admin', async (c) => {
       ${stat('hold', 'Awaiting payment', stats.awaiting)}
       ${stat('cash', 'Value on hold', '£' + Math.round(stats.on_hold / 100).toLocaleString('en-GB'))}
       ${stat('good', 'Confirmed today', stats.paid_today)}
-      ${stat('risk', 'Orders all time', stats.total)}
+      ${stat('all', 'Orders all time', stats.total)}
     </div>
     <form class="bar" method="get" action="/admin">
       <div class="search">

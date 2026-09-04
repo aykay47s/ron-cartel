@@ -152,11 +152,10 @@ checkoutRoutes.get('/checkout', async (c) => {
           ${icon.lock}<span id="placeTxt">${priced.depositOnly ? 'Pay deposit & reserve' : 'Place order'}</span>
         </button>
 
-        <div class="trust">
-          <div>${icon.tick}Stock held ${esc(s.hold_hours)} hours while you pay</div>
-          <div>${icon.tick}Tracked and signed-for dispatch</div>
-          <div>${icon.tick}UK support, seven days a week</div>
-        </div>
+        <!-- One line, and it is true: the hold window comes from settings.
+             "Tracked and signed-for dispatch" was not true of every option,
+             and "UK support, seven days a week" was invented outright. -->
+        <p class="hold-note">Your order is held for ${esc(s.hold_hours)} hours while payment clears.</p>
       </div>
     </div>
   </aside>

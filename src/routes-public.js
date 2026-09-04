@@ -71,11 +71,6 @@ publicRoutes.get('/', async (c) => {
   <div class="cards">${cards}</div>
 </main>
 
-<footer class="f shell">
-  <span>© ${new Date().getFullYear()} ${esc(s.shop_name)}</span><span>·</span>
-  <span>Manchester, UK</span><span>·</span>
-  <a href="/admin" style="color:var(--muted)">Admin</a>
-</footer>
 
 <script>
 (function(){

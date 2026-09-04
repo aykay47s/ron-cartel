@@ -457,6 +457,29 @@ head('the payment page');
   ok('naming the bank is optional', !plain.text.includes('Starling Bank'));
 }
 
+head('live viewer count is real, not theatre');
+{
+  const shopV = await go('/');
+  const vPid = (shopV.text.match(/href="\/p\/(\d+)/) || [])[1];
+
+  const first = await go('/p/' + vPid);
+  ok('one viewer says nothing at all', !first.text.includes('looking at this right now'));
+
+  const again = await go('/p/' + vPid);
+  ok('refreshing does not invent a second person',
+     !again.text.includes('looking at this right now'));
+
+  /* A different user agent is a different visitor, which is the honest case:
+     two actual people on the same listing. */
+  const other = await fetch(B + '/p/' + vPid, { headers: { 'user-agent': 'another-real-browser/1.0' } });
+  const otherText = await other.text();
+  ok('two real visitors are reported', otherText.includes('2 people are looking at this right now'),
+     'no count shown');
+
+  const sold = await go('/');
+  ok('the shop page still renders', sold.status === 200);
+}
+
 head('session cookies survive plain HTTP');
 {
   const r = await fetch(B + '/admin/login', {

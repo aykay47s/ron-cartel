@@ -423,6 +423,40 @@ head('open banking (Crezco) setup and checkout');
   ok('turning it off removes it again', !off.text.includes('Pick your bank'));
 }
 
+head('the payment page');
+{
+  await go('/admin/login', form({ pin: '778899' }));
+  await go('/admin/settings', form({
+    shop_name: 'Ron Cartel', bank_account_name: 'Ron Cartel Ltd',
+    bank_sort: '04-00-75', bank_number: '88213470', bank_which: 'starling',
+  }));
+  const shopP = await go('/');
+  const payPid = (shopP.text.match(/href="\/p\/(\d+)/) || [])[1];
+  const dIds = [...(await go('/admin/delivery')).text
+    .matchAll(/action="\/admin\/delivery\/(\d+)"/g)].map((m) => m[1]);
+  const placed = await go('/checkout', form({
+    id: payPid, qty: '1', delivery_id: dIds[0], method: 'bank', country: 'GB',
+    cust_name: 'Nia Barratt', cust_email: 'nia@example.com', address: '9 Test Rd',
+  }));
+  const page = await go(String(placed.loc));
+  ok('the bank is named next to the details', page.text.includes('Starling Bank'));
+  ok('every detail has its own copy button',
+     (page.text.match(/data-copyval=/g) || []).length >= 4,
+     (page.text.match(/data-copyval=/g) || []).length + ' found');
+  ok('and there is a copy-the-lot button', page.text.includes('data-copyall='));
+  ok('the account number is on the page', page.text.includes('88213470'));
+  ok('proof upload is a drop zone', page.text.includes('class="drop"')
+     && page.text.includes('Drop a screenshot here'));
+  ok('the file input is still a real input', page.text.includes('type="file"'));
+
+  await go('/admin/settings', form({
+    shop_name: 'Ron Cartel', bank_account_name: 'Ron Cartel Ltd',
+    bank_sort: '04-00-75', bank_number: '88213470', bank_which: '',
+  }));
+  const plain = await go(String(placed.loc));
+  ok('naming the bank is optional', !plain.text.includes('Starling Bank'));
+}
+
 head('session cookies survive plain HTTP');
 {
   const r = await fetch(B + '/admin/login', {

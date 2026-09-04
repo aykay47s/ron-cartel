@@ -206,6 +206,7 @@ const DEFAULT_SETTINGS = {
   /* Crezco — open banking with no monthly fee and no per-payment fee on UK
      domestic transfers, which is the shape this shop needs. Kept separate
      from the TrueLayer keys so either can be used. */
+  bank_which: '',
   crezco_on: '',
   crezco_link: '',
   crezco_api_key: '',

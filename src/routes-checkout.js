@@ -6,6 +6,7 @@ import { sendMailSafe, templates } from './mail.js';
 import { statusPill } from './routes-customer.js';
 import { bankConfig, createBankPayment, bankPaymentStatus } from './pay-bank.js';
 import { COURIERS, COUNTRIES, forCountry, leadTime, priceFor, reaches, countryName } from './shipping.js';
+import { bankMark, bankName } from './banks.js';
 
 export const checkoutRoutes = new Hono();
 
@@ -479,11 +480,24 @@ checkoutRoutes.get('/order/:ref', async (c) => {
 
   <div class="panel spot" style="margin-bottom:18px">
     <div class="panel-h"><h3>${order.method === 'ppff' ? 'PayPal details'
-      : order.method === 'crezco' ? 'Or send it yourself' : 'Bank transfer details'}</h3></div>
+      : order.method === 'crezco' ? 'Or send it yourself' : 'Pay by bank transfer'}</h3>
+      ${order.method !== 'ppff' && s.bank_which ? `<span class="whichbank">
+        ${bankMark(s.bank_which, 22)}${esc(bankName(s.bank_which))}</span>` : ''}</div>
     <div class="panel-b">
-      <div class="rows">
-        ${rows.map(([k, v]) => `<div class="row-f"><span class="k">${esc(k)}</span><span class="v big">${esc(v || '—')}</span></div>`).join('')}
+      <!-- Every line is one tap to copy. Typing an eight-digit account number
+           off a screen into a banking app is where transfers go wrong. -->
+      <div class="paylines">
+        ${rows.map(([k, v]) => `
+          <div class="payline">
+            <span class="pl-k">${esc(k)}</span>
+            <span class="pl-v" data-val="${esc(v || '')}">${esc(v || '—')}</span>
+            ${v ? `<button class="copy pl-c" type="button" data-copyval="${esc(v)}"
+                    aria-label="Copy ${esc(k)}">${icon.copy || ''}Copy</button>` : ''}
+          </div>`).join('')}
       </div>
+      <button class="btn ghost wide copyall" type="button" style="margin-top:12px"
+        data-copyall="${esc(rows.map(([k, v]) => `${k}: ${v}`).join('\n'))}">
+        Copy every detail</button>
       ${order.is_deposit ? `<div class="note info">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4.5M12 8h.01"/></svg>
         <span>${esc(s.collection_note)}</span></div>` : ''}
@@ -502,13 +516,22 @@ checkoutRoutes.get('/order/:ref', async (c) => {
         <a class="proof" href="/img/${pr.image_id}" target="_blank" rel="noopener">
           <img src="/img/${pr.image_id}" alt="Proof of payment">
           <span>${when(pr.created_at)}</span></a>`).join('')}</div>` : ''}
-      <form method="post" action="/order/${esc(order.ref)}/proof" enctype="multipart/form-data">
-        <div class="field"><label for="pf">Screenshot</label>
-          <input id="pf" name="proof" type="file" accept="image/*" required>
-          <div class="hint">Up to 6MB.</div></div>
-        <div class="field"><label for="pn">Anything to add <span style="color:var(--ghost);font-weight:400">optional</span></label>
+      <form method="post" action="/order/${esc(order.ref)}/proof" enctype="multipart/form-data"
+            class="dropform">
+        <!-- A real drop target. The file input is still there and still does
+             the work — it is just moved off screen so the whole panel becomes
+             the thing you drop onto or click. Keyboard and screen readers get
+             the input as normal. -->
+        <label class="drop" for="pf">
+          <input id="pf" name="proof" type="file" accept="image/*" required class="drop-input">
+          <span class="drop-ico" aria-hidden="true">${icon.upload}</span>
+          <span class="drop-t">Drop a screenshot here</span>
+          <span class="drop-s">or <u>choose a file</u> · JPG or PNG, up to 6MB</span>
+          <span class="drop-pick" hidden><img alt="" class="drop-thumb"><span class="drop-name"></span></span>
+        </label>
+        <div class="field" style="margin-top:14px"><label for="pn">Anything to add <span style="color:var(--ghost);font-weight:400">optional</span></label>
           <input id="pn" name="note" maxlength="200" placeholder="e.g. sent from a different name"></div>
-        <button class="btn" type="submit">${icon.camera} Upload proof</button>
+        <button class="btn wide" type="submit">${icon.camera} Send it over</button>
       </form>
     </div>
   </div>`}

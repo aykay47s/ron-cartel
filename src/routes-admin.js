@@ -5,6 +5,7 @@ import {
   readCookie, setCookie, clearCookie, lockedOut, recordFailure, clearFailures,
 } from './auth.js';
 import { layout, esc, money, pence, icon, productArt, flash, STATUS_LABEL } from './ui.js';
+import { BANKS } from './banks.js';
 import { sendMailSafe, templates } from './mail.js';
 
 export const adminRoutes = new Hono();
@@ -411,6 +412,14 @@ adminRoutes.get('/admin/settings', async (c) => {
               <div class="field"><label for="bn">Account number</label>
                 <input id="bn" name="bank_number" value="${esc(s.bank_number)}" maxlength="12" placeholder="88213470"></div>
             </div>
+            <div class="field"><label for="bw">Which bank</label>
+              <select id="bw" name="bank_which">
+                <option value="">Don't show it</option>
+                ${Object.entries(BANKS).filter(([k]) => k).map(([k, b]) =>
+                  `<option value="${k}"${s.bank_which === k ? ' selected' : ''}>${esc(b.name)}</option>`).join('')}
+              </select>
+              <div class="hint">Shown next to the account number. Seeing the bank name is
+                what makes the details feel real to someone about to send you money.</div></div>
             <div class="hint">Leave blank to hide bank transfer at checkout.</div>
           </div>
         </section>
@@ -550,7 +559,7 @@ adminRoutes.post('/admin/settings', async (c) => {
   const take = (k, v) => { if (f[k] !== undefined) patch[k] = v === undefined ? f[k] : v; };
   for (const k of ['shop_name', 'tagline', 'contact_email',
                    'bank_account_name', 'bank_sort', 'bank_number',
-                   'paypal_address', 'paypal_note', 'collection_note',
+                   'paypal_address', 'paypal_note', 'collection_note', 'bank_which',
                    'legal_name', 'trading_address', 'contact_phone',
                    'company_number', 'vat_number', 'site_url', 'returns_note']) take(k);
   if (f.hold_hours !== undefined) patch.hold_hours = String(parseInt(f.hold_hours, 10) || 24);

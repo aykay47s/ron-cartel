@@ -14,23 +14,30 @@
 }
 
 :root{
-  /* ink — flat, no gradients anywhere in this file */
-  --ink:#0A0B0C; --ink-2:#0D0E10;
-  --surface:#111214; --surface-2:#141618; --surface-3:#1A1D20;
-  --edge:rgba(255,255,255,.09); --edge-2:rgba(255,255,255,.05);
+  /* Every colour here is lifted from the Ron Cartel badge: the charcoal it
+     is drawn on, the off-white of the RON brushstroke, and the oxblood of
+     CARTEL. Blue never belonged to this brand. */
 
-  /* type */
-  --text:#F2F4F6; --muted:#8D959E; --faint:#666D75; --ghost:#464C53;
+  /* ink — warm near-black, the badge's own ground */
+  --ink:#0A0A0B; --ink-2:#101011;
+  --surface:#151516; --surface-2:#1A1A1C; --surface-3:#232325;
+  --edge:rgba(237,233,227,.10); --edge-2:rgba(237,233,227,.055);
 
-  /* accent — a signal, not decoration. Used for: focus, selection,
-     the active nav item, links. Nothing else. */
-  --volt:#2E8BFF; --volt-2:#5C9EFF; --volt-3:#9CC4FF;
-  --volt-dim:rgba(46,139,255,.10); --volt-line:rgba(46,139,255,.55);
+  /* type — bone, not white. The lettering on the badge is off-white and
+     the whole thing reads warmer for it. */
+  --text:#EDE9E3; --muted:#9A948C; --faint:#6E6963; --ghost:#4B4741;
+
+  /* accent — oxblood. #6E1B1B is sampled straight off the badge; it is too
+     dark to read on black, so it is the deep tone and the brighter crimson
+     does the work on screen. */
+  --blood:#B3252A; --blood-2:#DA3B41; --blood-3:#F07076;
+  --blood-deep:#6E1B1B;
+  --blood-dim:rgba(179,37,42,.13); --blood-line:rgba(179,37,42,.62);
 
   /* status */
-  --go:#34D399; --go-dim:rgba(52,211,153,.13);
-  --hold:#FBBF24; --hold-dim:rgba(251,191,36,.13);
-  --stop:#F87171; --stop-dim:rgba(248,113,113,.13);
+  --go:#4ADE80; --go-dim:rgba(74,222,128,.12);
+  --hold:#E8A33D; --hold-dim:rgba(232,163,61,.13);
+  --stop:#DA3B41; --stop-dim:rgba(218,59,65,.13);
 
   /* form */
   --r-lg:14px; --r:10px; --r-sm:7px;
@@ -56,7 +63,7 @@ img{max-width:100%;display:block}
 a{color:inherit;text-decoration:none}
 button,input,select{font:inherit;color:inherit}
 
-:focus-visible{outline:2px solid var(--volt-2);outline-offset:3px;border-radius:4px}
+:focus-visible{outline:2px solid var(--blood-2);outline-offset:3px;border-radius:4px}
 
 /* ---------- atmosphere ----------
    One static film grain. No drifting colour blooms, no grid overlay —
@@ -75,8 +82,8 @@ button,input,select{font:inherit;color:inherit}
          text-transform:uppercase;color:var(--faint)}
 .display{font-weight:800;font-stretch:112%;letter-spacing:-.038em;line-height:.92;
          margin:0;font-size:clamp(36px,6vw,72px);text-wrap:balance}
-/* the second line of a headline recedes instead of turning blue */
-.display .lit{color:var(--faint)}
+/* the second line of a headline is the one that carries the colour */
+.display .lit{color:var(--blood-2)}
 h2.sect{font-size:clamp(21px,2.6vw,30px);font-weight:800;font-stretch:112%;
         letter-spacing:-.022em;margin:0}
 .lede{color:var(--muted);font-size:15px;max-width:52ch;margin:14px 0 0;line-height:1.6}
@@ -90,14 +97,22 @@ h2.sect{font-size:clamp(21px,2.6vw,30px);font-weight:800;font-stretch:112%;
            display:flex;align-items:center;gap:22px}
 .logo{display:flex;align-items:center;gap:10px;font-weight:900;font-size:16.5px;
       font-stretch:112%;letter-spacing:-.02em;text-transform:uppercase}
-.logo .glyph{width:28px;height:28px;border-radius:7px;background:var(--text);
-             display:grid;place-items:center;color:var(--ink);flex:none}
+/* The header carries the crowned RC lifted off the badge; at 26px the full
+   badge is mud, the monogram still reads. The footer gets the whole badge. */
+.logo .glyph{width:26px;height:32px;flex:none;display:block;background:none}
+.logo .glyph img{width:100%;height:100%;display:block;object-fit:contain}
+.sitefoot .logo .glyph{width:34px;height:34px;border-radius:50%;overflow:hidden;
+  box-shadow:0 0 0 1px rgba(237,233,227,.13)}
+.sitefoot .logo .glyph img{object-fit:cover}
 .nav{display:flex;gap:4px;margin-left:8px}
-.nav a{padding:8px 13px;border-radius:8px;font-size:13.5px;font-weight:600;
-       color:var(--muted);transition:color .16s,background .16s;min-height:38px;
-       display:flex;align-items:center}
+.nav a{position:relative;padding:8px 13px;border-radius:8px;font-size:13.5px;
+       font-weight:600;color:var(--muted);transition:color .16s,background .16s;
+       min-height:38px;display:flex;align-items:center}
 .nav a:hover{color:var(--text);background:var(--surface-2)}
-.nav a.on{color:var(--text);background:transparent;box-shadow:inset 0 -1px 0 var(--text)}
+.nav a.on{color:var(--text);background:transparent}
+/* a straight rule, not a curve following the pill's corner radius */
+.nav a.on::after{content:'';position:absolute;left:13px;right:13px;bottom:4px;
+  height:2px;background:var(--blood)}
 .topbar-r{margin-left:auto;display:flex;align-items:center;gap:11px}
 .chip{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:600;
       color:var(--muted);padding:7px 12px;border-radius:99px;border:1px solid var(--edge);
@@ -138,16 +153,14 @@ h2.sect{font-size:clamp(21px,2.6vw,30px);font-weight:800;font-stretch:112%;
 .opt:last-child{margin-bottom:0}
 .opt:hover{border-color:rgba(255,255,255,.18)}
 .opt input{position:absolute;opacity:0;width:1px;height:1px}
-/* Selected reads as "brighter", not "blue". With the rest of the page this
-   calm, a saturated outline was the loudest thing on the screen and it was
-   only marking a radio button. Blue is kept for keyboard focus alone. */
-.opt.sel{border-color:rgba(255,255,255,.34);background:var(--surface-3)}
-.opt:has(input:focus-visible){outline:2px solid var(--volt-2);outline-offset:2px}
+.opt.sel{border-color:var(--blood-line);background:var(--surface-3);
+  box-shadow:inset 3px 0 0 var(--blood)}
+.opt:has(input:focus-visible){outline:2px solid var(--blood-2);outline-offset:2px}
 
 .dot{width:19px;height:19px;border-radius:50%;border:1.6px solid #4A525C;flex:none;
      display:grid;place-items:center;transition:border-color .2s}
-.opt.sel .dot{border-color:var(--text)}
-.dot i{width:9px;height:9px;border-radius:50%;background:var(--text);
+.opt.sel .dot{border-color:var(--blood)}
+.dot i{width:9px;height:9px;border-radius:50%;background:var(--blood);
        transform:scale(0);transition:transform .18s var(--ease-out)}
 .opt.sel .dot i{transform:scale(1)}
 
@@ -166,7 +179,7 @@ h2.sect{font-size:clamp(21px,2.6vw,30px);font-weight:800;font-stretch:112%;
 .tag{font-family:var(--mono);font-size:9.5px;font-weight:700;letter-spacing:.11em;
      text-transform:uppercase;padding:3.5px 7px;border-radius:5px;
      background:var(--surface-3);color:var(--muted);border:1px solid var(--edge-2)}
-.tag.hot{background:transparent;color:var(--volt-2);border-color:var(--volt-line)}
+.tag.hot{background:transparent;color:var(--blood-2);border-color:var(--blood-line)}
 .tag.go{background:var(--go-dim);color:var(--go);border-color:rgba(52,211,153,.3)}
 
 /* ---------- disclosure detail ---------- */
@@ -202,13 +215,14 @@ h2.sect{font-size:clamp(21px,2.6vw,30px);font-weight:800;font-stretch:112%;
    sweeping shine is the single loudest tell of a generated page, and it
    competes with the product photography for attention. White wins the page
    without shouting. */
+/* The badge has exactly one colour on it, and this is it. */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;
      min-height:48px;padding:14px 24px;border:1px solid transparent;
-     border-radius:var(--r);background:var(--text);color:var(--ink);
-     font-weight:700;font-size:14.5px;letter-spacing:-.01em;cursor:pointer;
-     transition:background .15s,color .15s,border-color .15s}
-.btn:hover{background:#fff}
-.btn:active{background:#D8DCE0}
+     border-radius:var(--r);background:var(--blood);color:#FFF3F2;
+     font-weight:700;font-size:14.5px;letter-spacing:-.005em;cursor:pointer;
+     transition:background .15s,border-color .15s}
+.btn:hover{background:var(--blood-2)}
+.btn:active{background:var(--blood-deep)}
 .btn.wide{width:100%}
 .btn.ghost{background:transparent;color:var(--text);border-color:var(--edge)}
 .btn.ghost:hover{background:var(--surface-2);border-color:rgba(255,255,255,.18)}
@@ -269,10 +283,10 @@ h2.sect{font-size:clamp(21px,2.6vw,30px);font-weight:800;font-stretch:112%;
 .stp.done{color:var(--muted)}
 .stp.done .n{background:var(--go-dim);border-color:rgba(52,211,153,.4);color:var(--go)}
 .stp.now{color:var(--text)}
-.stp.now .n{background:var(--text);border-color:transparent;color:var(--ink)}
+.stp.now .n{background:var(--blood);border-color:transparent;color:#FFF3F2}
 .track{flex:1;min-width:22px;max-width:64px;height:2px;border-radius:2px;
        background:var(--surface-3);overflow:hidden}
-.track i{display:block;height:100%;width:100%;background:var(--muted);
+.track i{display:block;height:100%;width:100%;background:var(--blood);
          transform-origin:left}
 
 /* ---------- reveal ----------
@@ -287,7 +301,7 @@ h2.sect{font-size:clamp(21px,2.6vw,30px);font-weight:800;font-stretch:112%;
 .toast{position:fixed;left:50%;bottom:26px;z-index:80;
   transform:translateX(-50%) translateY(120px);
   display:flex;align-items:center;gap:10px;padding:13px 19px;border-radius:var(--r);
-  background:var(--text);color:var(--ink);font-weight:700;font-size:13.5px;
+  background:var(--blood);color:#FFF3F2;font-weight:700;font-size:13.5px;
   transition:transform .28s var(--ease-out)}
 .toast.on{transform:translateX(-50%) translateY(0)}
 
@@ -336,7 +350,7 @@ h2.sect{font-size:clamp(21px,2.6vw,30px);font-weight:800;font-stretch:112%;
   transition:border-color .2s,box-shadow .2s}
 .field textarea{min-height:88px;resize:vertical;line-height:1.55}
 .field input:focus,.field textarea:focus,.field select:focus{
-  border-color:var(--volt-line);box-shadow:0 0 0 4px var(--volt-dim)}
+  border-color:var(--blood-line);box-shadow:0 0 0 4px var(--blood-dim)}
 .field .hint{font-size:12px;color:var(--faint);margin-top:5px}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}
 @media (max-width:560px){.grid2{grid-template-columns:1fr}}
@@ -371,8 +385,19 @@ h2.sect{font-size:clamp(21px,2.6vw,30px);font-weight:800;font-stretch:112%;
 .spec .v{font-family:var(--mono);font-size:24px;font-weight:600;letter-spacing:-.045em;
   color:var(--text)}
 .spec .k{font-size:11.5px;color:var(--faint);margin-top:2px;font-weight:600}
+/* A single warm floor-light under the bike, the way a bike looks in a unit
+   with one lamp on it. This is the one piece of atmosphere on the page. */
 .stage{position:relative;border-radius:var(--r-lg);border:1px solid var(--edge);
-  background:var(--ink-2);padding:34px 26px 28px;overflow:hidden}
+  background:
+    radial-gradient(ellipse 70% 46% at 50% 104%, rgba(179,37,42,.20), transparent 70%),
+    radial-gradient(ellipse 90% 70% at 50% 22%, #191919, #0C0C0D 76%);
+  padding:34px 26px 28px;overflow:hidden}
+/* halftone — the badge is drawn like print, so the page carries a little
+   of the same dot grain where the product sits */
+.stage::before{content:'';position:absolute;inset:0;pointer-events:none;opacity:.5;
+  background-image:radial-gradient(rgba(237,233,227,.055) .5px, transparent .5px);
+  background-size:4px 4px;
+  mask-image:radial-gradient(ellipse 80% 70% at 50% 40%,#000,transparent 78%)}
 .stage .lbl{position:absolute;top:14px;left:16px;z-index:2}
 .stage .tags{position:absolute;z-index:2;top:14px;left:14px;display:flex;gap:7px}
 .stage>img{width:100%;height:auto;border-radius:var(--r);position:relative;z-index:1}
@@ -387,7 +412,10 @@ h2.sect{font-size:clamp(21px,2.6vw,30px);font-weight:800;font-stretch:112%;
   transition:border-color .22s var(--ease)}
 .card:hover{border-color:rgba(255,255,255,.2)}
 .card .art{position:relative;aspect-ratio:4/3;display:grid;place-items:center;
-  background:var(--ink-2);border-bottom:1px solid var(--edge-2);overflow:hidden;padding:16px}
+  background:
+    radial-gradient(ellipse 62% 40% at 50% 102%, rgba(179,37,42,.16), transparent 72%),
+    radial-gradient(ellipse 86% 72% at 50% 30%, #191919, #0C0C0D 78%);
+  border-bottom:1px solid var(--edge-2);overflow:hidden;padding:16px}
 .card .art>img{width:100%;height:100%;object-fit:cover;position:absolute;inset:0;
   transition:transform .5s var(--ease)}
 .card:hover .art>img{transform:scale(1.03)}
@@ -408,7 +436,7 @@ h2.sect{font-size:clamp(21px,2.6vw,30px);font-weight:800;font-stretch:112%;
 .card .go{margin-left:auto;width:36px;height:36px;border-radius:8px;flex:none;
   background:transparent;border:1px solid var(--edge);display:grid;place-items:center;
   color:var(--muted);transition:background .18s,color .18s,border-color .18s}
-.card:hover .go{background:var(--text);border-color:transparent;color:var(--ink)}
+.card:hover .go{background:var(--blood);border-color:transparent;color:#FFF3F2}
 footer.f{border-top:1px solid var(--edge-2);padding:30px 0 46px;color:var(--faint);
          font-size:12.5px;display:flex;gap:16px;flex-wrap:wrap;align-items:center}
 
@@ -510,10 +538,10 @@ footer.f{border-top:1px solid var(--edge-2);padding:30px 0 46px;color:var(--fain
    count is not a warning. */
 .stat.hold .v{color:var(--hold)}
 
-/* Row actions in the orders table sit quiet until you look for them —
-   two solid white buttons outshouted the orders they belonged to. */
+/* Row actions sit quiet until you look for them. */
 .tr .btn{background:transparent;color:var(--text);border-color:var(--edge)}
-.tr .btn:hover{background:var(--surface-3);border-color:rgba(255,255,255,.2)}
+.tr .btn:hover{background:var(--blood-dim);border-color:var(--blood-line);
+               color:var(--blood-3)}
 
 .bar{display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
 .search{flex:1;min-width:240px;position:relative}
@@ -523,7 +551,7 @@ footer.f{border-top:1px solid var(--edge-2);padding:30px 0 46px;color:var(--fain
   border:1px solid var(--edge);background:var(--surface);color:var(--text);
   font-family:var(--mono);font-size:14px;letter-spacing:.05em;outline:none;
   transition:border-color .2s,box-shadow .2s}
-.search input:focus{border-color:var(--volt-line);box-shadow:0 0 0 4px var(--volt-dim)}
+.search input:focus{border-color:var(--blood-line);box-shadow:0 0 0 4px var(--blood-dim)}
 .search input::placeholder{font-family:var(--sans);letter-spacing:0;color:var(--ghost)}
 .segs{display:flex;gap:4px;padding:4px;border-radius:var(--r);border:1px solid var(--edge);
       background:var(--surface)}
@@ -539,9 +567,9 @@ footer.f{border-top:1px solid var(--edge-2);padding:30px 0 46px;color:var(--fain
 .tr:last-child{border-bottom:none}
 .tr:hover{background:rgba(255,255,255,.022)}
 .tr::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;
-  background:var(--volt);transform:scaleY(0);transition:transform .2s var(--ease-out)}
+  background:var(--blood);transform:scaleY(0);transition:transform .2s var(--ease-out)}
 .tr.hit::before{transform:scaleY(1)}
-.tr.hit{background:var(--volt-dim)}
+.tr.hit{background:var(--blood-dim)}
 .tr.settled{opacity:.5}
 .refc{font-family:var(--mono);font-weight:600;font-size:13.5px;letter-spacing:.06em;
       color:var(--text)}
@@ -562,7 +590,7 @@ footer.f{border-top:1px solid var(--edge-2);padding:30px 0 46px;color:var(--fain
   .tr>div:nth-child(5){display:flex;justify-content:flex-end}
 }
 input[type=file]{padding:11px 12px;font-size:13.5px}
-input[type=checkbox]{accent-color:var(--volt)}
+input[type=checkbox]{accent-color:var(--blood)}
 
 /* ============================================================
    ACCOUNTS · TRACKING · PROOF

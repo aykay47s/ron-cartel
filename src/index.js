@@ -47,10 +47,16 @@ app.get('/assets/*', async (c) => {
   const file = join(ASSETS, rel);
   if (!file.startsWith(ASSETS) || !existsSync(file)) return c.notFound();
   const body = await readFile(file);
+  /* A fingerprinted URL (?v=<hash>) can be cached hard, because a changed
+     file gets a different URL. Without the fingerprint we must not, or a
+     deploy takes a day to reach anyone who has already visited. */
+  const fingerprinted = c.req.query('v') !== undefined;
   return new Response(body, {
     headers: {
       'content-type': MIME[extname(file)] || 'application/octet-stream',
-      'cache-control': 'public, max-age=86400',
+      'cache-control': fingerprinted
+        ? 'public, max-age=31536000, immutable'
+        : 'no-cache',
     },
   });
 });

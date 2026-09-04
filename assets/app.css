@@ -69,21 +69,37 @@ button,input,select{font:inherit;color:inherit}
    One static film grain. No drifting colour blooms, no grid overlay —
    those read as decoration for its own sake and flatten everything under
    them into the same soft haze. The photography is the atmosphere. */
-.atmos{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
-.grain{position:absolute;inset:0;opacity:.022;
+/* One light source, from above and behind, the colour of the badge. It is
+   motivated — a bike under a single lamp in a unit — which is why it reads
+   as art direction rather than as decoration sprayed over everything. */
+.atmos{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;
+  background:
+    radial-gradient(ellipse 120% 60% at 50% -10%, rgba(179,37,42,.14), transparent 62%),
+    radial-gradient(ellipse 80% 50% at 82% 8%, rgba(237,233,227,.045), transparent 60%)}
+.grain{position:absolute;inset:0;opacity:.030;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.82' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
 
 @keyframes spin{to{transform:rotate(360deg)}}
 
+/* Halftone. The badge is drawn like print; the page is printed on the same
+   stock. Fine enough to feel rather than see. */
+.atmos::after{content:'';position:absolute;inset:0;opacity:.55;
+  background-image:radial-gradient(rgba(237,233,227,.05) .5px, transparent .5px);
+  background-size:3px 3px;
+  mask-image:linear-gradient(180deg,#000 0%,rgba(0,0,0,.35) 55%,transparent 100%)}
 .page{position:relative;z-index:1}
 
 /* ---------- type ---------- */
 .eyebrow{font-size:11px;font-weight:700;letter-spacing:.06em;
          text-transform:uppercase;color:var(--faint)}
-.display{font-weight:800;font-stretch:112%;letter-spacing:-.038em;line-height:.92;
-         margin:0;font-size:clamp(36px,6vw,72px);text-wrap:balance}
-/* the second line of a headline is the one that carries the colour */
-.display .lit{color:var(--blood-2)}
+.display{font-weight:900;font-stretch:116%;letter-spacing:-.042em;line-height:.88;
+         margin:0;font-size:clamp(38px,6.6vw,84px);text-wrap:balance}
+/* the coloured half of a headline sits a shade deeper at the baseline, the
+   way heavy ink does on stock */
+.display .lit{color:var(--blood-2);
+  background:linear-gradient(180deg,#E4494F,#A81F25);
+  -webkit-background-clip:text;background-clip:text;
+  -webkit-text-fill-color:transparent}
 h2.sect{font-size:clamp(21px,2.6vw,30px);font-weight:800;font-stretch:112%;
         letter-spacing:-.022em;margin:0}
 .lede{color:var(--muted);font-size:15px;max-width:52ch;margin:14px 0 0;line-height:1.6}
@@ -128,8 +144,10 @@ h2.sect{font-size:clamp(21px,2.6vw,30px);font-weight:800;font-stretch:112%;
 .shell{max-width:1220px;margin:0 auto;padding:0 22px}
 
 /* ---------- panels ---------- */
-.panel{position:relative;background:var(--surface);
-       border:1px solid var(--edge);border-radius:var(--r-lg);overflow:hidden}
+.panel{position:relative;background:
+         linear-gradient(180deg,rgba(237,233,227,.028),transparent 120px),var(--surface);
+       border:1px solid var(--edge);border-radius:var(--r-lg);overflow:hidden;
+       box-shadow:inset 0 1px 0 rgba(237,233,227,.06), 0 20px 50px -40px #000}
 .panel-h{padding:16px 20px;border-bottom:1px solid var(--edge-2);
          display:flex;align-items:center;gap:10px}
 .panel-h h3{margin:0;font-size:13.5px;font-weight:700;letter-spacing:-.005em;
@@ -222,18 +240,31 @@ h2.sect{font-size:clamp(21px,2.6vw,30px);font-weight:800;font-stretch:112%;
    competes with the product photography for attention. White wins the page
    without shouting. */
 /* The badge has exactly one colour on it, and this is it. */
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;
-     min-height:48px;padding:14px 24px;border:1px solid transparent;
-     border-radius:var(--r);background:var(--blood);color:#FFF3F2;
+/* Lit from the same direction as everything else: a hairline highlight on
+   the top edge, a shadow beneath, and it presses in when you click it. */
+.btn{position:relative;display:inline-flex;align-items:center;justify-content:center;
+     gap:9px;min-height:48px;padding:14px 24px;border:1px solid rgba(0,0,0,.4);
+     border-radius:var(--r);color:#FFF4F3;
+     background:linear-gradient(180deg,#C42B31,#9E1F24);
      font-weight:700;font-size:14.5px;letter-spacing:-.005em;cursor:pointer;
-     transition:background .15s,border-color .15s}
-.btn:hover{background:var(--blood-2)}
-.btn:active{background:var(--blood-deep)}
+     box-shadow:inset 0 1px 0 rgba(255,255,255,.22),
+                0 1px 2px rgba(0,0,0,.5),
+                0 10px 24px -14px rgba(179,37,42,.85);
+     transition:filter .15s, box-shadow .15s, transform .08s}
+.btn:hover{filter:brightness(1.1);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.28),
+             0 1px 2px rgba(0,0,0,.5),
+             0 14px 30px -14px rgba(179,37,42,1)}
+.btn:active{transform:translateY(1px);filter:brightness(.94);
+  box-shadow:inset 0 2px 4px rgba(0,0,0,.4)}
 .btn.wide{width:100%}
-.btn.ghost{background:transparent;color:var(--text);border-color:var(--edge)}
-.btn.ghost:hover{background:var(--surface-2);border-color:rgba(255,255,255,.18)}
+.btn.ghost{background:linear-gradient(180deg,rgba(237,233,227,.055),rgba(237,233,227,.02));
+  color:var(--text);border-color:var(--edge);
+  box-shadow:inset 0 1px 0 rgba(237,233,227,.07)}
+.btn.ghost:hover{filter:none;background:linear-gradient(180deg,rgba(237,233,227,.1),rgba(237,233,227,.04));
+  border-color:rgba(237,233,227,.22);box-shadow:inset 0 1px 0 rgba(237,233,227,.1)}
 .btn:disabled{background:var(--surface-2);color:var(--ghost);cursor:not-allowed;
-              border-color:var(--edge)}
+              border-color:var(--edge);box-shadow:none;filter:none;transform:none}
 .btn.sm{min-height:40px;padding:10px 16px;font-size:13px}
 
 .copy{flex:none;display:inline-flex;align-items:center;gap:6px;min-height:36px;
@@ -249,8 +280,9 @@ h2.sect{font-size:clamp(21px,2.6vw,30px);font-weight:800;font-stretch:112%;
 .note svg{margin-top:1.5px}
 .note.warn{background:var(--hold-dim);border:1px solid rgba(251,191,36,.24);color:#F5DEA8}
 .note.warn svg{color:var(--hold)}
-.note.info{background:rgba(96,145,255,.08);border:1px solid rgba(96,145,255,.2);color:#BACDF0}
-.note.info svg{color:#7BA5FF}
+.note.info{background:rgba(237,233,227,.045);border:1px solid var(--edge);color:#CFC9C1}
+.note.info svg{color:var(--blood-2)}
+.note strong{color:var(--text)}
 .note.stop{background:var(--stop-dim);border:1px solid rgba(248,113,113,.24);color:#F3C0C0}
 .note.stop svg{color:var(--stop)}
 
@@ -321,12 +353,15 @@ h2.sect{font-size:clamp(21px,2.6vw,30px);font-weight:800;font-stretch:112%;
    four stray declarations with no selector, plus keyframes nothing used. */
 
 /* readout chips under the bike */
-.readout{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:16px}
-.readout div{display:flex;flex-direction:column;align-items:center;gap:2px;
-  padding:9px 15px;border-radius:11px;border:1px solid var(--edge);background:var(--surface)}
-.readout .v{font-size:15px;font-weight:600;letter-spacing:-.03em;
-  color:var(--text)}
-.readout .k{font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:var(--faint)}
+.readout{position:relative;z-index:3;display:flex;flex-wrap:wrap;margin-top:20px;
+  border-top:1px solid rgba(237,233,227,.10);padding-top:14px}
+.readout div{flex:1 1 0;min-width:64px;display:flex;flex-direction:column;
+  align-items:flex-start;gap:1px;padding:0 14px;border-left:1px solid rgba(237,233,227,.08)}
+.readout div:first-child{border-left:0;padding-left:0}
+.readout .v{font-size:19px;font-weight:800;letter-spacing:-.04em;color:var(--text);
+  line-height:1.1;font-variant-numeric:tabular-nums lining-nums}
+.readout .k{font-size:9.5px;text-transform:uppercase;letter-spacing:.11em;
+  color:var(--faint);font-weight:700}
 
 /* ---------- empty state ---------- */
 .blank{grid-column:1/-1;padding:60px 26px;text-align:center;border-radius:var(--r-lg);
@@ -381,49 +416,93 @@ h2.sect{font-size:clamp(21px,2.6vw,30px);font-weight:800;font-stretch:112%;
 /* ============================================================
    PAGE LAYOUTS (server-rendered app)
    ============================================================ */
-.hero{padding:60px 0 50px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.02fr);
-      gap:40px;align-items:center}
+.hero{position:relative;overflow:hidden;padding:70px 0 40px;display:grid;
+      grid-template-columns:minmax(0,.92fr) minmax(0,1.08fr);
+      gap:44px;align-items:center}
 @media (max-width:940px){.hero{grid-template-columns:1fr;padding:34px 0 26px;gap:26px}}
-.hero .display{margin-bottom:16px}
+.hero .display{margin-bottom:18px}
+.hero-copy{position:relative;z-index:2}
+
+/* The brand word, oversized, running off the right edge behind the bike.
+   Anchored to the middle of the hero so it never collides with the header,
+   and drawn as an outline so it reads as signwriting rather than as a
+   second headline competing with the real one. */
+.hero-word{position:absolute;z-index:0;left:-6%;right:auto;bottom:-9%;
+  pointer-events:none;white-space:nowrap;
+  font-weight:900;font-stretch:120%;font-size:clamp(140px,18vw,300px);line-height:.8;
+  letter-spacing:-.055em;color:transparent;
+  -webkit-text-stroke:1.5px rgba(237,233,227,.05);
+  mask-image:linear-gradient(90deg,#000 40%,transparent 82%)}
+@media (max-width:940px){.hero-word{display:none}}
 .hero-cta{display:flex;gap:11px;margin-top:24px;flex-wrap:wrap}
-.specs{display:flex;gap:26px;margin-top:30px;flex-wrap:wrap}
-.spec .v{font-size:24px;font-weight:600;letter-spacing:-.045em;
-  color:var(--text)}
-.spec .k{font-size:11.5px;color:var(--faint);margin-top:2px;font-weight:600}
+/* Numbers big, labels small and above them — a spec plate, read top-down. */
+.specs{display:flex;gap:0;margin:34px 0 0;padding:0;flex-wrap:wrap;
+  border-top:1px solid var(--edge-2)}
+.spec{padding:16px 26px 0 0;margin-right:26px;position:relative}
+.spec + .spec{padding-left:26px;border-left:1px solid var(--edge-2)}
+.spec .k{margin:0;font-size:10.5px;font-weight:700;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--faint)}
+.spec .v{margin:5px 0 0;font-size:30px;font-weight:800;letter-spacing:-.04em;
+  color:var(--text);line-height:1;font-variant-numeric:tabular-nums lining-nums}
 /* A single warm floor-light under the bike, the way a bike looks in a unit
    with one lamp on it. This is the one piece of atmosphere on the page. */
+/* The bike stands on a lit floor under one lamp. Three layers do the work:
+   a cool key light from above, an oxblood bounce off the floor, and a hard
+   vignette that closes the corners so the eye goes to the machine. */
 .stage{position:relative;border-radius:var(--r-lg);border:1px solid var(--edge);
   background:
-    radial-gradient(ellipse 70% 46% at 50% 104%, rgba(179,37,42,.20), transparent 70%),
-    radial-gradient(ellipse 90% 70% at 50% 22%, #191919, #0C0C0D 76%);
-  padding:34px 26px 28px;overflow:hidden}
-/* halftone — the badge is drawn like print, so the page carries a little
-   of the same dot grain where the product sits */
-.stage::before{content:'';position:absolute;inset:0;pointer-events:none;opacity:.5;
-  background-image:radial-gradient(rgba(237,233,227,.055) .5px, transparent .5px);
-  background-size:4px 4px;
-  mask-image:radial-gradient(ellipse 80% 70% at 50% 40%,#000,transparent 78%)}
+    radial-gradient(ellipse 58% 34% at 50% 96%, rgba(179,37,42,.34), transparent 72%),
+    radial-gradient(ellipse 74% 46% at 50% 4%,  rgba(237,233,227,.10), transparent 70%),
+    radial-gradient(ellipse 96% 78% at 50% 34%, #1C1C1D, #0A0A0B 78%);
+  padding:38px 28px 30px;overflow:hidden;
+  box-shadow:inset 0 1px 0 rgba(237,233,227,.07)}
+/* the floor the bike stands on */
+.stage::after{content:'';position:absolute;left:0;right:0;bottom:0;height:34%;
+  pointer-events:none;
+  background:linear-gradient(180deg,transparent,rgba(0,0,0,.55));
+  border-bottom-left-radius:inherit;border-bottom-right-radius:inherit}
+/* print texture, tighter over the product than over the page */
+.stage::before{content:'';position:absolute;inset:0;pointer-events:none;opacity:.6;z-index:2;
+  background-image:radial-gradient(rgba(237,233,227,.06) .5px, transparent .5px);
+  background-size:3px 3px;
+  mask-image:radial-gradient(ellipse 78% 68% at 50% 42%,#000,transparent 80%)}
 .stage .lbl{position:absolute;top:14px;left:16px;z-index:2}
 .stage .tags{position:absolute;z-index:2;top:14px;left:14px;display:flex;gap:7px}
 .stage>img{width:100%;height:auto;border-radius:var(--r);position:relative;z-index:1}
 
-.grid-head{display:flex;align-items:flex-end;gap:20px;margin:56px 0 22px;flex-wrap:wrap}
+.grid-head{position:relative;display:flex;align-items:flex-end;gap:20px;
+  margin:64px 0 26px;padding-top:22px;flex-wrap:wrap;
+  border-top:1px solid var(--edge-2)}
+.grid-head::before{content:'';position:absolute;top:-1px;left:0;width:64px;height:2px;
+  background:var(--blood)}
 .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(272px,1fr));gap:18px;
        padding-bottom:40px}
 /* No lift, no shadow bloom. The border brightens and the photo eases in
    very slightly — enough to feel alive, not enough to bounce. */
 .card{position:relative;display:flex;flex-direction:column;overflow:hidden;
-  border-radius:var(--r-lg);border:1px solid var(--edge);background:var(--surface);
-  transition:border-color .22s var(--ease)}
-.card:hover{border-color:rgba(255,255,255,.2)}
+  border-radius:var(--r-lg);border:1px solid var(--edge);
+  background:linear-gradient(180deg,rgba(237,233,227,.025),transparent 90px),var(--surface);
+  box-shadow:inset 0 1px 0 rgba(237,233,227,.05), 0 24px 50px -44px #000;
+  transition:border-color .22s var(--ease), box-shadow .22s var(--ease)}
+.card:hover{border-color:rgba(237,233,227,.22);
+  box-shadow:inset 0 1px 0 rgba(237,233,227,.09), 0 30px 60px -40px #000}
+/* a red rule wipes in across the top on hover — the one flourish */
+.card::after{content:'';position:absolute;top:0;left:0;right:0;height:2px;z-index:3;
+  background:var(--blood);transform:scaleX(0);transform-origin:left;
+  transition:transform .34s var(--ease-out)}
+.card:hover::after{transform:scaleX(1)}
+.card.gone::after{display:none}
 .card .art{position:relative;aspect-ratio:4/3;display:grid;place-items:center;
   background:
-    radial-gradient(ellipse 62% 40% at 50% 102%, rgba(179,37,42,.16), transparent 72%),
-    radial-gradient(ellipse 86% 72% at 50% 30%, #191919, #0C0C0D 78%);
+    radial-gradient(ellipse 54% 30% at 50% 98%, rgba(179,37,42,.28), transparent 74%),
+    radial-gradient(ellipse 70% 42% at 50% 2%,  rgba(237,233,227,.07), transparent 70%),
+    radial-gradient(ellipse 92% 76% at 50% 36%, #1B1B1C, #0A0A0B 80%);
   border-bottom:1px solid var(--edge-2);overflow:hidden;padding:16px}
+.card .art::after{content:'';position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(180deg,transparent 58%,rgba(0,0,0,.45))}
 .card .art>img{width:100%;height:100%;object-fit:cover;position:absolute;inset:0;
-  transition:transform .5s var(--ease)}
-.card:hover .art>img{transform:scale(1.03)}
+  transition:transform .6s var(--ease)}
+.card:hover .art>img{transform:scale(1.04)}
 .badge{position:absolute;top:12px;left:12px;z-index:2;
   font-size:9.5px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;
   padding:5px 9px;border-radius:6px;backdrop-filter:blur(10px)}
@@ -647,7 +726,12 @@ input[type=checkbox]{accent-color:var(--blood)}
 .ev .dt{color:var(--muted);font-size:12.5px}
 
 /* ---------- site footer ---------- */
-.sitefoot{border-top:1px solid var(--edge-2);margin-top:56px;padding:46px 0 50px}
+.sitefoot{position:relative;border-top:1px solid var(--edge-2);margin-top:56px;
+  padding:46px 0 50px;overflow:hidden}
+.sitefoot::before{content:'';position:absolute;right:-60px;bottom:-90px;
+  width:340px;height:340px;pointer-events:none;opacity:.05;
+  background:url('logo-180.png') center/contain no-repeat}
+@media (max-width:720px){.sitefoot::before{display:none}}
 .sitefoot .cols{display:grid;grid-template-columns:minmax(0,1.4fr) repeat(2,minmax(0,1fr));
                 gap:34px}
 @media (max-width:720px){.sitefoot .cols{grid-template-columns:1fr;gap:26px}}
@@ -747,3 +831,64 @@ input[type=checkbox]{accent-color:var(--blood)}
 .dopt details[open] summary .dcv{transform:rotate(180deg)}
 .dopt details[open] summary{border-bottom:1px solid var(--edge-2)}
 .dopt-h{border-bottom:0}
+
+/* ============================================================
+   SMALL SCREENS
+   Most people will open this on a phone from a TikTok link, so the
+   phone layout is the one that has to be right, not the fallback.
+   ============================================================ */
+@media (max-width:720px){
+  /* the spec plate stays one row of three — wrapping put a lone stat on
+     its own line with an orphaned divider */
+  .specs{display:grid;grid-template-columns:repeat(3,1fr);gap:0;margin-top:26px}
+  .spec{padding:14px 10px 0 0;margin-right:0}
+  .spec + .spec{padding-left:14px}
+  .spec .k{font-size:9.5px;letter-spacing:.07em}
+  .spec .v{font-size:22px;margin-top:4px}
+
+  .hero{padding:26px 0 22px}
+  .hero .display{font-size:clamp(34px,10.5vw,52px)}
+  .lede{font-size:14.5px}
+  .stage{padding:20px 16px 18px;border-radius:12px}
+  .readout{margin-top:14px;padding-top:11px}
+  .readout div{padding:0 9px;min-width:0}
+  .readout .v{font-size:16px}
+  .readout .k{font-size:8.5px;letter-spacing:.08em}
+
+  /* a phone shows one card at a time, so the picture can be shorter and
+     the whole card stays thumb-sized */
+  .cards{grid-template-columns:1fr;gap:14px}
+  .card .art{aspect-ratio:16/10}
+  .card .body{padding:14px 15px 16px}
+  .grid-head{margin:40px 0 18px;padding-top:18px}
+  .sect{font-size:clamp(22px,7vw,30px)}
+
+  /* full-width actions — a 48px button floating in the middle of a phone
+     screen is a miss waiting to happen */
+  .btn{width:100%}
+  .hero-cta{width:100%}
+  .buyrow .btn,.dopt-f .btn{flex:1 1 100%}
+  .co-head .display{font-size:clamp(28px,9vw,40px)}
+  .shell{padding:0 16px}
+  .panel-b{padding:16px}
+  .panel-b.rows-flush .opt{padding-left:16px;padding-right:16px}
+  .opt{gap:11px}
+  .otxt .t{font-size:14px}
+  .sum-total .amt{font-size:27px}
+  .doc{padding:28px 0 10px}
+  .setup-strip{grid-template-columns:1fr}
+  .step{gap:12px;padding:18px 0}
+  .step-b h3{font-size:16px}
+}
+
+@media (max-width:420px){
+  .topbar-in{padding:0 16px;height:56px;gap:10px}
+  .logo{font-size:15px}
+  .display{letter-spacing:-.035em}
+  .spec .v{font-size:19px}
+}
+
+/* the one-tap pay-by-bank panel on the order page */
+.payby{background:
+  radial-gradient(ellipse 70% 100% at 50% 0%, rgba(179,37,42,.16), transparent 70%),
+  linear-gradient(180deg,rgba(237,233,227,.028),transparent 120px),var(--surface)}

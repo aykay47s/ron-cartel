@@ -79,7 +79,6 @@ checkoutRoutes.get('/checkout', async (c) => {
   const method = (id, label, note, ic, tag, on) => `
     <label class="opt pay${on ? ' sel' : ''}" data-pay="${id}">
       <input type="radio" name="method" value="${id}"${on ? ' checked' : ''}>
-      <span class="dot" aria-hidden="true"><i></i></span>
       <span class="oico" aria-hidden="true">${ic}</span>
       <span class="otxt"><span class="t">${label}${tag || ''}</span>
         <span class="s">${note}</span></span>
@@ -89,7 +88,12 @@ checkoutRoutes.get('/checkout', async (c) => {
   let firstMethod = true;
   const pick = () => { const v = firstMethod; firstMethod = false; return v; };
 
+  const crezcoReady = s.crezco_on === '1' && !!s.crezco_link;
+
   const payRows = `
+    ${crezcoReady ? method('crezco', 'Pay by bank',
+        'Pick your bank, approve it in your banking app. Arrives in seconds.',
+        icon.bankpay, ` <span class="tag go">${icon.bolt} Instant</span>`, pick()) : ''}
     ${bank.ready ? method('bankpay', 'Pay by bank',
         'Tap your bank, approve in the app. Clears in seconds and confirms itself.',
         icon.bankpay, ` <span class="tag go">${icon.bolt} Instant</span>`, pick()) : ''}
@@ -230,10 +234,11 @@ checkoutRoutes.post('/checkout', async (c) => {
   const s = await getSettings();
   const bank = await bankConfig();
   const asked = String(form.method || 'bank');
-  const method = ['bank', 'ppff', 'bankpay'].includes(asked) ? asked : 'bank';
+  const method = ['bank', 'ppff', 'bankpay', 'crezco'].includes(asked) ? asked : 'bank';
   if (method === 'bank'    && !(s.bank_sort && s.bank_number)) return c.redirect('/');
   if (method === 'ppff'    && !s.paypal_address)              return c.redirect('/');
   if (method === 'bankpay' && !bank.ready)                    return c.redirect('/');
+  if (method === 'crezco'  && !(s.crezco_on === '1' && s.crezco_link)) return c.redirect('/');
 
   const priced = await priceOrder({ product, qty, option });
   const cust = await customerFrom(readCustomerCookie(c));
@@ -450,6 +455,22 @@ checkoutRoutes.get('/order/:ref', async (c) => {
   </div>` : ''}
 
   ${paid || retryBank ? '' : `
+  ${order.method === 'crezco' && s.crezco_link ? `
+  <!-- One button. They pick their bank, approve it, and come back. The
+       reference still shows because Crezco's free tier asks them to type it. -->
+  <div class="panel spot payby" style="margin-bottom:18px">
+    <div class="panel-b" style="text-align:center;padding:26px 20px">
+      <p style="margin:0 0 4px;font-weight:700;font-size:16px">Pay £${money(order.total_p)} from your bank</p>
+      <p style="margin:0 0 18px;color:var(--muted);font-size:13.5px">
+        Pick your bank, approve it in your banking app. It arrives in seconds.</p>
+      <a class="btn wide" href="${esc(s.crezco_link)}" target="_blank" rel="noopener noreferrer"
+         style="max-width:340px;margin:0 auto">${icon.bankpay} Open my banking app</a>
+      <p style="margin:16px 0 0;color:var(--faint);font-size:12.5px">
+        Use <strong style="color:var(--text)">${esc(order.ref)}</strong> as the reference
+        and <strong style="color:var(--text)">£${money(order.total_p)}</strong> as the amount.</p>
+    </div>
+  </div>` : ''}
+
   <div class="plate hero">
     <div class="pk">Your payment reference</div>
     <div class="pv refOut">${esc(order.ref)}</div>
@@ -457,7 +478,8 @@ checkoutRoutes.get('/order/:ref', async (c) => {
   </div>
 
   <div class="panel spot" style="margin-bottom:18px">
-    <div class="panel-h"><h3>${order.method === 'ppff' ? 'PayPal details' : 'Bank transfer details'}</h3></div>
+    <div class="panel-h"><h3>${order.method === 'ppff' ? 'PayPal details'
+      : order.method === 'crezco' ? 'Or send it yourself' : 'Bank transfer details'}</h3></div>
     <div class="panel-b">
       <div class="rows">
         ${rows.map(([k, v]) => `<div class="row-f"><span class="k">${esc(k)}</span><span class="v big">${esc(v || '—')}</span></div>`).join('')}

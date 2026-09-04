@@ -372,17 +372,23 @@ adminRoutes.get('/admin/settings', async (c) => {
     <!-- The three things that need explaining rather than listing get their own
          guided pages. Everything left on this page is a field you can just fill in. -->
     <div class="setup-strip">
-      <a class="setup-card" href="/admin/setup/bank">
+      <a class="setup-card" href="/admin/setup/openbanking">
         <span class="sc-ico">${icon.bankpay || icon.bank}</span>
         <span class="sc-t">Pay by bank</span>
-        <span class="sc-s">${s.bank_pay_on ? 'On — customers can tap their bank' : 'Not set up yet'}</span>
-        <span class="sc-go">${s.bank_pay_on ? 'Change' : 'Set it up'} →</span>
+        <span class="sc-s">${s.crezco_on ? 'On — free, no monthly fee' : 'Not set up yet'}</span>
+        <span class="sc-go">${s.crezco_on ? 'Change' : 'Set it up'} →</span>
       </a>
       <a class="setup-card" href="/admin/setup/email">
         <span class="sc-ico">${icon.mail}</span>
         <span class="sc-t">Order emails</span>
         <span class="sc-s">${s.emails_on && s.smtp_host ? esc(s.smtp_user) : 'Not set up yet'}</span>
         <span class="sc-go">${s.emails_on && s.smtp_host ? 'Change' : 'Set it up'} →</span>
+      </a>
+      <a class="setup-card" href="/admin/setup/bank">
+        <span class="sc-ico">${icon.bank}</span>
+        <span class="sc-t">TrueLayer</span>
+        <span class="sc-s">${s.bank_pay_on ? 'On' : 'Optional — paid alternative'}</span>
+        <span class="sc-go">${s.bank_pay_on ? 'Change' : 'Set it up'} →</span>
       </a>
       <a class="setup-card" href="/admin/delivery">
         <span class="sc-ico">${icon.truck}</span>

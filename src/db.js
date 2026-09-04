@@ -203,6 +203,13 @@ const DEFAULT_SETTINGS = {
 
   /* Pay by bank (open banking) via TrueLayer. */
   bank_pay_on: '',
+  /* Crezco — open banking with no monthly fee and no per-payment fee on UK
+     domestic transfers, which is the shape this shop needs. Kept separate
+     from the TrueLayer keys so either can be used. */
+  crezco_on: '',
+  crezco_link: '',
+  crezco_api_key: '',
+  crezco_account: '',
   tl_env: 'sandbox',
   tl_client_id: '',
   tl_client_secret: '',

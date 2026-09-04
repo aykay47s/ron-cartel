@@ -38,16 +38,19 @@ publicRoutes.get('/', async (c) => {
   const body = `
 <main class="shell">
   <section class="hero">
-    <div>
+    <!-- The word sits behind the bike like paint on a shutter. It is the
+         brand mark at poster scale, not a decoration. -->
+    <span class="hero-word" aria-hidden="true">CARTEL</span>
+    <div class="hero-copy">
       <p class="eyebrow rv" style="margin:0 0 13px">${esc(s.tagline)}</p>
       <h1 class="display rv">Built to take<br><span class="lit">the abuse.</span></h1>
       <p class="lede rv">Grafted Light Bee builds, put together and tested here — not pulled off a pallet and shipped on. Next-day UK delivery, or collect in person with a deposit.</p>
       <div class="hero-cta rv"><a class="btn" href="#shop">${icon.bag} See what's in</a></div>
-      <div class="specs rv">
-        <div class="spec"><div class="v">24h</div><div class="k">UK dispatch</div></div>
-        <div class="spec"><div class="v">6kW</div><div class="k">Peak power</div></div>
-        <div class="spec"><div class="v">250Nm</div><div class="k">Peak torque</div></div>
-      </div>
+      <dl class="specs rv">
+        <div class="spec"><dt class="k">UK dispatch</dt><dd class="v">24h</dd></div>
+        <div class="spec"><dt class="k">Peak power</dt><dd class="v">6kW</dd></div>
+        <div class="spec"><dt class="k">Peak torque</dt><dd class="v">250Nm</dd></div>
+      </dl>
     </div>
     <div class="stage rv">
       <span class="lbl eyebrow">Light Bee X · 19" front &amp; rear</span>

@@ -359,3 +359,105 @@ setupRoutes.post('/admin/delivery/:id/delete', async (c) => {
   await q('delete from delivery_options where id = $1', [c.req.param('id')]);
   return c.redirect('/admin/delivery?ok=1');
 });
+
+/* ------------------------------------------------------------------ *
+ *  CREZCO — open banking with no monthly fee and no per-payment fee on
+ *  UK domestic transfers. Two ways in, and the shop supports both:
+ *
+ *    Payment link  — you paste one link, every order sends the customer
+ *                    to it, they type the amount and the reference.
+ *                    Works today, zero integration.
+ *    API key       — the shop creates each payment itself with the amount
+ *                    and reference already filled in. One tap for them.
+ *
+ *  The link route is deliberately first, because it works the moment the
+ *  account exists and does not depend on which plan they end up on.
+ * ------------------------------------------------------------------ */
+setupRoutes.get('/admin/setup/openbanking', async (c) => {
+  const s = await getSettings();
+  const hasLink = !!s.crezco_link;
+  const live = s.crezco_on === '1';
+
+  const body = wrap('One tap, straight from their bank', 'openbanking', `
+    ${flash('error', c.req.query('e'))}
+    ${c.req.query('ok') ? flash('info', 'Saved.') : ''}
+    <p class="lede" style="max-width:62ch;margin-bottom:26px">
+      Your customer picks their bank, approves the payment in their own banking
+      app, and it lands in your account in seconds. It is a bank transfer — the
+      same money, the same speed — except they never type a sort code and you
+      never have to check whether it arrived.</p>
+
+    <div class="note info" style="margin-bottom:26px">${icon.spark}
+      <div><strong>Why Crezco and not the others.</strong> Every open banking
+      provider charges for access — a monthly platform fee, usually with a
+      minimum. Crezco's free plan is £0 a month and takes no cut of UK
+      bank-to-bank payments; they make their money on international transfers
+      and the paid tiers. Sole traders can open one, so you do not need a
+      limited company. Check the plan says that when you sign up — pricing
+      moves, and I would rather you saw it yourself than took my word.</div></div>
+
+    ${step(1, 'Open a free Crezco account', `
+      <p>Pick the <strong>Free</strong> plan. You will need your business or sole
+      trader details and the bank account you want the money paid into. It takes
+      about ten minutes and most of that is waiting for verification.</p>
+      <a class="btn ghost sm" href="https://crezco.com/" target="_blank" rel="noopener noreferrer">
+        ${icon.globe} Open Crezco</a>`, hasLink ? 'done' : '')}
+
+    ${step(2, 'Create a payment link and paste it here', `
+      <p>In Crezco, make a payment link for your business — the one that lets
+      someone pay you without you sending an invoice first. Copy the URL and
+      drop it in below.</p>
+      <form method="post" action="/admin/setup/openbanking">
+        <div class="field"><label for="cl">Your Crezco payment link</label>
+          <input id="cl" name="crezco_link" value="${esc(s.crezco_link)}" maxlength="300"
+                 placeholder="https://pay.crezco.com/..." inputmode="url">
+          <div class="hint">Leave blank to hide it at checkout.</div></div>
+        <div class="field"><label for="ca">API key <span style="color:var(--ghost);font-weight:400">optional</span></label>
+          <input id="ca" name="crezco_api_key" type="password" value="${esc(s.crezco_api_key)}"
+                 maxlength="200" autocomplete="off">
+          <div class="hint">If your plan gives you one, paste it and the amount and
+            reference get filled in for the customer automatically. Without it the
+            link still works — they just type those two things themselves.</div></div>
+        <button class="btn" type="submit">${icon.tick} Save</button>
+      </form>`, hasLink ? 'done' : '')}
+
+    ${step(3, 'Turn it on at checkout', hasLink ? `
+      <form method="post" action="/admin/setup/openbanking/live">
+        <p>${live
+          ? 'It is <strong>on</strong>, and it sits at the top of the payment list where most people will take it.'
+          : 'Ready when you are.'}</p>
+        <button class="btn${live ? ' ghost' : ''}" type="submit" name="on" value="${live ? '0' : '1'}">
+          ${live ? 'Turn it off' : icon.spark + ' Turn it on'}</button>
+      </form>` : '<p class="hint">Finish step 2 first.</p>', live ? 'done' : '')}
+
+    <div class="note warn" style="margin-top:26px">${icon.spark}
+      <div><strong>What happens to the money.</strong> It goes straight from their
+      bank to yours. Nobody holds it, so there is nothing to freeze — but there is
+      also no chargeback and no dispute process. That cuts both ways, and your
+      Terms page says so plainly.</div></div>
+  `);
+  return c.html(layout({ title: 'Open banking — Setup', body, active: 'admin',
+    admin: c.get('admin'), settings: s }));
+});
+
+setupRoutes.post('/admin/setup/openbanking', async (c) => {
+  const f = await c.req.parseBody();
+  const link = String(f.crezco_link || '').trim();
+  /* Only ever send customers somewhere over https, and never anywhere the
+     shop owner has not actually typed. */
+  if (link && !/^https:\/\//i.test(link)) {
+    return c.redirect('/admin/setup/openbanking?e=' +
+      encodeURIComponent('That link needs to start with https://'));
+  }
+  await setSettings({
+    crezco_link: link.slice(0, 300),
+    crezco_api_key: String(f.crezco_api_key || '').trim().slice(0, 200),
+  });
+  return c.redirect('/admin/setup/openbanking?ok=1');
+});
+
+setupRoutes.post('/admin/setup/openbanking/live', async (c) => {
+  const f = await c.req.parseBody();
+  await setSettings({ crezco_on: String(f.on) === '1' ? '1' : '' });
+  return c.redirect('/admin/setup/openbanking');
+});

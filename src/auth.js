@@ -88,15 +88,26 @@ export function readCookie(c, name = COOKIE) {
   return null;
 }
 
+/* Only mark cookies Secure when the request actually arrived over HTTPS.
+   Tying this to NODE_ENV meant a production box on a bare IP set Secure over
+   plain HTTP — browsers silently drop the cookie, so signing in bounced
+   straight back to the login form. nginx passes X-Forwarded-Proto. */
+function isHttps(c) {
+  const xf = c.req.header('x-forwarded-proto');
+  if (xf) return xf.split(',')[0].trim().toLowerCase() === 'https';
+  try { return new URL(c.req.url).protocol === 'https:'; } catch { return false; }
+}
+const secureFlag = (c) => (isHttps(c) ? '; Secure' : '');
+
 export function setCookie(c, token, expires) {
-  const secure = (process.env.NODE_ENV === 'production') ? '; Secure' : '';
+  const secure = secureFlag(c);
   c.header('Set-Cookie',
     `${COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax` +
     `${secure}; Expires=${expires.toUTCString()}`);
 }
 
 export function clearCookie(c) {
-  const secure = (process.env.NODE_ENV === 'production') ? '; Secure' : '';
+  const secure = secureFlag(c);
   c.header('Set-Cookie',
     `${COOKIE}=; Path=/; HttpOnly; SameSite=Lax${secure}; Max-Age=0`);
 }
@@ -193,14 +204,14 @@ export const customerLogout = (token) => q('delete from customer_sessions where 
 export const readCustomerCookie = (c) => readCookie(c, C_COOKIE);
 
 export function setCustomerCookie(c, token, expires) {
-  const secure = (process.env.NODE_ENV === 'production') ? '; Secure' : '';
+  const secure = secureFlag(c);
   c.header('Set-Cookie',
     `${C_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax` +
     `${secure}; Expires=${expires.toUTCString()}`);
 }
 
 export function clearCustomerCookie(c) {
-  const secure = (process.env.NODE_ENV === 'production') ? '; Secure' : '';
+  const secure = secureFlag(c);
   c.header('Set-Cookie', `${C_COOKIE}=; Path=/; HttpOnly; SameSite=Lax${secure}; Max-Age=0`);
 }
 

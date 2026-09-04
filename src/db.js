@@ -157,6 +157,17 @@ const MIGRATIONS = [
   `create index if not exists rate_hits_idx on rate_hits (bucket, at desc)`,
   `create index if not exists products_pos_idx on products (position, id)`,
   `alter table customers add column if not exists country text not null default 'GB'`,
+  /* Live viewer counts. One row per (product, visitor); the visitor is a
+     hash of IP + user agent + a salt that rolls daily, so nothing that
+     identifies a person is stored and there is no cookie to consent to.
+     Rows older than the window are swept on write. */
+  `create table if not exists product_views (
+     product_id int not null references products(id) on delete cascade,
+     visitor text not null,
+     seen_at timestamptz not null default now(),
+     primary key (product_id, visitor)
+   )`,
+  `create index if not exists product_views_seen on product_views (seen_at)`,
   /* Shops seeded before couriers existed showed "No courier" against a row
      that plainly said Royal Mail. Name them once; anything already set is
      left alone. */

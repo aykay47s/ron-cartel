@@ -418,8 +418,10 @@ adminRoutes.get('/admin/settings', async (c) => {
                 ${Object.entries(BANKS).filter(([k]) => k).map(([k, b]) =>
                   `<option value="${k}"${s.bank_which === k ? ' selected' : ''}>${esc(b.name)}</option>`).join('')}
               </select>
-              <div class="hint">Shown next to the account number. Seeing the bank name is
-                what makes the details feel real to someone about to send you money.</div></div>
+              <div class="hint">Shown next to the account number on the payment page.
+                Seeing the bank name is what makes the details feel real to someone about
+                to send you money. Leave it on "Don't show it" and nothing appears —
+                which is why it looks like nothing happened until you pick one.</div></div>
             <div class="hint">Leave blank to hide bank transfer at checkout.</div>
           </div>
         </section>

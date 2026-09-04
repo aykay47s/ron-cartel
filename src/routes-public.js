@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { q, one, many, getSettings } from './db.js';
 import { layout, esc, money, icon, bikePhoto, productArt, makeRef, STATUS_LABEL } from './ui.js';
+import { seen, viewerLine } from './viewers.js';
 
 export const publicRoutes = new Hono();
 
@@ -101,6 +102,10 @@ publicRoutes.get('/p/:id', async (c) => {
   if (!p) return c.notFound();
   const s = await getSettings();
   const gone = p.status !== 'stock';
+  /* A real count of other people on this listing right now. Says nothing
+     when there is nothing to say. */
+  const watching = gone ? 0 : await seen(c, p.id);
+  const watchLine = viewerLine(watching);
 
   const body = `
 <main class="shell pdp">
@@ -116,6 +121,7 @@ publicRoutes.get('/p/:id', async (c) => {
     ${p.blurb ? `<p class="lede" style="font-size:15px">${esc(p.blurb)}</p>` : ''}
     <div class="price-row"><span class="price">£${money(p.price_p)}</span>
       ${p.was_p ? `<span class="was">£${money(p.was_p)}</span>` : ''}</div>
+    ${watchLine ? `<p class="watching"><span class="wdot" aria-hidden="true"></span>${esc(watchLine)}</p>` : ''}
 
     ${gone
       ? `<div class="note warn" style="margin-top:16px">

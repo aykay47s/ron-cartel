@@ -952,3 +952,9 @@ input[type=checkbox]{accent-color:var(--blood)}
    stray 2px rule that shared its class name */
 .track li::before{background:var(--surface-3)}
 .track li.on::before{background:var(--go)}
+
+/* live viewer count — only ever rendered when the number is real and > 1 */
+.watching{display:flex;align-items:center;gap:8px;margin:10px 0 0;
+  font-size:13px;font-weight:600;color:var(--muted)}
+.wdot{width:7px;height:7px;border-radius:50%;background:var(--go);flex:none;
+  box-shadow:0 0 0 3px rgba(74,222,128,.16)}

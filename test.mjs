@@ -333,6 +333,23 @@ head('session cookies survive plain HTTP');
   ok('Secure comes back once the request is HTTPS', /;\s*Secure/i.test(sc), sc);
 }
 
+head('assets are fingerprinted so a deploy actually reaches people');
+{
+  const home = await go('/');
+  const m = home.text.match(/href="(\/assets\/app\.css\?v=[0-9a-f]{10})"/);
+  ok('the stylesheet URL carries a content hash', !!m, home.text.slice(0, 200));
+  if (m) {
+    const r = await fetch(B + m[1]);
+    ok('fingerprinted assets are cached hard',
+       /immutable/.test(r.headers.get('cache-control') || ''),
+       r.headers.get('cache-control'));
+  }
+  const bare = await fetch(B + '/assets/app.css');
+  ok('an unfingerprinted asset is not cached at all',
+     (bare.headers.get('cache-control') || '') === 'no-cache',
+     bare.headers.get('cache-control'));
+}
+
 head('login throttle');
 jar = {};
 let blocked = false;

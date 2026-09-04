@@ -307,6 +307,32 @@ jar = {};
   }
 }
 
+head('session cookies survive plain HTTP');
+{
+  const r = await fetch(B + '/admin/login', {
+    method: 'POST', redirect: 'manual',
+    headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ pin: '778899' }).toString(),
+  });
+  const sc = r.headers.get('set-cookie') || '';
+  ok('no Secure flag over plain HTTP — the browser would drop the cookie',
+     sc.includes('rc_sess=') && !/;\s*Secure/i.test(sc), sc);
+  ok('still HttpOnly and SameSite over plain HTTP',
+     /HttpOnly/i.test(sc) && /SameSite=Lax/i.test(sc), sc);
+}
+{
+  const r = await fetch(B + '/admin/login', {
+    method: 'POST', redirect: 'manual',
+    headers: {
+      'content-type': 'application/x-www-form-urlencoded',
+      'x-forwarded-proto': 'https',
+    },
+    body: new URLSearchParams({ pin: '778899' }).toString(),
+  });
+  const sc = r.headers.get('set-cookie') || '';
+  ok('Secure comes back once the request is HTTPS', /;\s*Secure/i.test(sc), sc);
+}
+
 head('login throttle');
 jar = {};
 let blocked = false;

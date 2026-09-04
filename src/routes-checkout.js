@@ -234,6 +234,18 @@ checkoutRoutes.post('/checkout', async (c) => {
   }
   if (!order) return c.text('Could not create the order, please try again', 500);
 
+  /* Signup no longer asks for an address; this is where we learn it. Save it
+     back so the next order is prefilled, without ever overwriting something
+     the customer has already got on file with a blank. */
+  if (cust) {
+    await q(`update customers
+                set phone   = coalesce(nullif($1,''), phone),
+                    address = coalesce(nullif($2,''), address),
+                    name    = coalesce(nullif(name,''), $3)
+              where id = $4`,
+            [order.cust_phone, order.address, order.cust_name, cust.id]).catch(() => {});
+  }
+
   await q('insert into order_events (order_id, label, detail) values ($1,$2,$3)',
           [order.id, 'Order placed', `${order.product_name} × ${order.qty}`]);
   if (order.cust_email) {

@@ -1,3 +1,4 @@
+import { asset } from './assets.js';
 export const esc = (s) => String(s ?? '').replace(/[&<>"']/g,
   (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -41,7 +42,7 @@ export function bikePhoto(cls = '') {
   return `<figure class="surron ${cls}">
     <picture>
       <source srcset="/assets/bike.webp" type="image/webp">
-      <img src="/assets/bike.png" alt="Sur-Ron Light Bee X" loading="lazy" decoding="async">
+      <img src="${asset('bike.png')}" alt="Sur-Ron Light Bee X" loading="lazy" decoding="async">
     </picture>
     <span class="shadow" aria-hidden="true"></span>
   </figure>`;
@@ -74,7 +75,7 @@ export function siteFooter(s = {}) {
       <div class="cols">
         <div>
           <div class="logo" style="margin-bottom:12px">
-            <span class="glyph" aria-hidden="true"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M15 6a1 1 0 100-2 1 1 0 000 2zM12 17.5V14l-3-3 4-3 2 3h3"/></svg></span>
+            <span class="glyph" aria-hidden="true"><img src="${asset('logo-180.png')}" alt="" width="34" height="34"></span>
             ${esc(s.shop_name || 'Ron Cartel')}
           </div>
           ${bits.length ? `<p class="addr">${bits.join('<br>')}</p>`
@@ -109,14 +110,17 @@ export function layout({ title, body, active = '', admin = null, customer = null
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${esc(title)}</title>
-<link rel="stylesheet" href="/assets/app.css">
+<link rel="icon" href="${asset('favicon.png')}" type="image/png">
+<link rel="apple-touch-icon" href="${asset('icon-180.png')}">
+<meta name="theme-color" content="#0A0A0B">
+<link rel="stylesheet" href="${asset('app.css')}">
 ${head}
 </head>
 <body>
 <header class="topbar">
   <div class="topbar-in">
     <a class="logo" href="/">
-      <span class="glyph" aria-hidden="true"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M15 6a1 1 0 100-2 1 1 0 000 2zM12 17.5V14l-3-3 4-3 2 3h3"/></svg></span>
+      <span class="glyph" aria-hidden="true"><img src="${asset('mark.png')}" alt="" width="26" height="32"></span>
       Ron Cartel
     </a>
     ${nav(active, !!admin, !!customer)}
@@ -132,7 +136,7 @@ ${head}
   </div>
 </header>
 <div class="page">${body}${settings ? siteFooter(settings) : ''}</div>
-<script src="/assets/app.js"></script>
+<script src="${asset('app.js')}"></script>
 </body>
 </html>`;
 }

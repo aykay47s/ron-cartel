@@ -31,13 +31,11 @@ customerRoutes.get('/signup', async (c) => {
       <div class="field"><label for="p">Password</label>
         <input id="p" name="password" type="password" required minlength="8" autocomplete="new-password">
         <div class="hint">At least 8 characters.</div></div>
-      <div class="field"><label for="ph">Phone <span style="color:var(--ghost);font-weight:400">optional</span></label>
-        <input id="ph" name="phone" maxlength="30" autocomplete="tel"></div>
-      <div class="field"><label for="a">Delivery address <span style="color:var(--ghost);font-weight:400">optional</span></label>
-        <textarea id="a" name="address" maxlength="400" autocomplete="street-address"></textarea></div>
       <button class="btn wide" type="submit">Create account</button>
+      <p class="hint" style="text-align:center;margin-top:10px">
+        No address needed — you give that at checkout, and it is saved for next time.</p>
       <p style="text-align:center;margin:14px 0 0;font-size:13.5px;color:var(--muted)">
-        Already have one? <a href="/signin" style="color:var(--volt-2);font-weight:700">Sign in</a></p>
+        Already have one? <a href="/signin" style="color:var(--blood-2);font-weight:700">Sign in</a></p>
     </form>`);
   return c.html(layout({ title: 'Create an account', body, customer: c.get('customer') , settings: s }));
 });
@@ -55,8 +53,11 @@ customerRoutes.post('/signup', async (c) => {
   await createCustomer({
     email, password,
     name: String(f.name || '').slice(0, 80),
-    phone: String(f.phone || '').slice(0, 30),
-    address: String(f.address || '').slice(0, 400),
+    /* Phone and address are collected at checkout, where they are actually
+       needed, and written back to the account then. Asking for a delivery
+       address to make an account is a reason not to make one. */
+    phone: '',
+    address: '',
   });
   const sess = await customerLogin(email, password);
   setCustomerCookie(c, sess.token, sess.expires);
@@ -85,8 +86,8 @@ customerRoutes.get('/signin', async (c) => {
         <input id="p" name="password" type="password" required autocomplete="current-password"></div>
       <button class="btn wide" type="submit">Sign in</button>
       <p style="text-align:center;margin:14px 0 0;font-size:13.5px;color:var(--muted)">
-        No account? <a href="/signup" style="color:var(--volt-2);font-weight:700">Create one</a>
-        &nbsp;·&nbsp; <a href="/track" style="color:var(--volt-2);font-weight:700">Track without one</a></p>
+        No account? <a href="/signup" style="color:var(--blood-2);font-weight:700">Create one</a>
+        &nbsp;·&nbsp; <a href="/track" style="color:var(--blood-2);font-weight:700">Track without one</a></p>
     </form>`);
   return c.html(layout({ title: 'Sign in', body, customer: c.get('customer') , settings: s }));
 });

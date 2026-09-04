@@ -89,14 +89,68 @@ const RC = (function () {
     });
   }
 
+  /* ---------- proof drop zone ----------
+     Drag a screenshot anywhere over the panel, or click it. Shows a thumbnail
+     of what is about to be sent so nobody uploads the wrong screenshot. */
+  function dropzone() {
+    document.querySelectorAll('.drop').forEach(function (zone) {
+      var input = zone.querySelector('.drop-input');
+      var pick  = zone.querySelector('.drop-pick');
+      var thumb = zone.querySelector('.drop-thumb');
+      var name  = zone.querySelector('.drop-name');
+      if (!input) return;
+
+      function show(file) {
+        if (!file) return;
+        if (name) name.textContent = file.name;
+        if (pick) pick.hidden = false;
+        zone.classList.add('has');
+        if (thumb && /^image\//.test(file.type)) {
+          var r = new FileReader();
+          r.onload = function () { thumb.src = r.result; };
+          r.readAsDataURL(file);
+        }
+      }
+
+      ['dragenter', 'dragover'].forEach(function (ev) {
+        zone.addEventListener(ev, function (e) {
+          e.preventDefault(); zone.classList.add('over');
+        });
+      });
+      ['dragleave', 'dragend', 'drop'].forEach(function (ev) {
+        zone.addEventListener(ev, function () { zone.classList.remove('over'); });
+      });
+      zone.addEventListener('drop', function (e) {
+        e.preventDefault();
+        var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+        if (!f) return;
+        /* Hand the dropped file to the real input so the form posts normally. */
+        try {
+          var dt = new DataTransfer();
+          dt.items.add(f);
+          input.files = dt.files;
+        } catch (_) { return; }
+        show(f);
+      });
+      input.addEventListener('change', function () { show(input.files[0]); });
+    });
+  }
+
   /* ---------- clipboard ---------- */
   function clipboard() {
     document.addEventListener('click', e => {
-      const b = e.target.closest('[data-copy]');
+      /* Three ways to ask for a copy: point at an element, hand over one
+         value, or hand over the whole block of payment details. */
+      const b = e.target.closest('[data-copy],[data-copyval],[data-copyall]');
       if (!b) return;
       e.preventDefault(); e.stopPropagation();
-      const src = $(b.dataset.copy);
-      const txt = (src ? src.textContent : '').trim();
+      let txt = '';
+      if (b.dataset.copy) {
+        const src = $(b.dataset.copy);
+        txt = (src ? src.textContent : '').trim();
+      } else {
+        txt = (b.dataset.copyval || b.dataset.copyall || '').trim();
+      }
       const done = () => {
         const html = b.innerHTML;
         b.classList.add('ok'); b.textContent = 'Copied';
@@ -185,7 +239,7 @@ const RC = (function () {
     remove(id) { this.write(this.all().filter(p => p.id !== id)); }
   };
 
-  function boot() { atmosphere(); spotlight(); reveal(); clipboard(); }
+  function boot() { atmosphere(); spotlight(); reveal(); clipboard(); dropzone(); }
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', boot);
   } else boot();

@@ -277,6 +277,28 @@ if [ -f "$PGCONF" ] && ! grep -qE "^listen_addresses *= *'localhost'" "$PGCONF";
 fi
 
 # ---------- backups ----------
+# ---------- a one-word update ----------
+# Re-running the whole installer to pick up a change is a lot of machinery for
+# "git pull and restart", and the long command is easy to fat-finger over a
+# flaky SSH session. This puts it behind one word.
+cat > /usr/local/bin/ron-update <<'UPD'
+#!/usr/bin/env bash
+set -euo pipefail
+APP=/opt/ron-cartel
+git config --global --add safe.directory "$APP" 2>/dev/null || true
+cd "$APP"
+echo "==> Was on: $(git log --oneline -1)"
+git fetch --depth 1 origin main -q
+git reset --hard origin/main -q
+npm ci --omit=dev --no-audit --no-fund >/dev/null
+chown -R roncartel:roncartel "$APP"
+systemctl restart ron-cartel
+sleep 3
+echo "==> Now on: $(git log --oneline -1)"
+echo "==> Service: $(systemctl is-active ron-cartel)"
+UPD
+chmod +x /usr/local/bin/ron-update
+
 say "Setting up nightly backups"
 mkdir -p /var/backups/ron-cartel
 cat > /usr/local/bin/ron-cartel-backup <<EOF
@@ -348,7 +370,7 @@ cat <<EOF
 
      systemctl status ron-cartel
      journalctl -u ron-cartel -f
-     bash install.sh${DOMAIN:+ $DOMAIN}      # re-run to update
+     ron-update           # pull the latest and restart
   ────────────────────────────────────────────────
 
 EOF

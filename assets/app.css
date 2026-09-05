@@ -958,3 +958,75 @@ input[type=checkbox]{accent-color:var(--blood)}
   font-size:13px;font-weight:600;color:var(--muted)}
 .wdot{width:7px;height:7px;border-radius:50%;background:var(--go);flex:none;
   box-shadow:0 0 0 3px rgba(74,222,128,.16)}
+
+/* announcement bar */
+.announce{position:relative;z-index:41;padding:9px 22px;text-align:center;
+  background:var(--blood-deep);color:#FFE9E8;font-size:13px;font-weight:600;
+  letter-spacing:-.005em;border-bottom:1px solid rgba(0,0,0,.35)}
+.announce a{color:inherit;text-decoration:underline;text-underline-offset:3px;
+  text-decoration-color:rgba(255,233,232,.4)}
+.announce a:hover{text-decoration-color:currentColor}
+@media (max-width:560px){.announce{padding:8px 14px;font-size:12.5px}}
+
+/* the whole order row is the link, and it looks like it */
+.tr.rowlink{cursor:pointer}
+.tr .rowgo{color:var(--ghost);display:grid;place-items:center;transition:color .16s,transform .16s}
+.tr:hover .rowgo{color:var(--text);transform:translateX(2px)}
+.proofcount{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;
+  font-weight:700;color:var(--go);margin-top:5px}
+
+/* the journey — a real list of what happened and where */
+.journey{list-style:none;margin:0;padding:0}
+.journey li{position:relative;display:flex;gap:14px;padding:0 0 20px}
+.journey li:last-child{padding-bottom:0}
+.journey li::before{content:'';position:absolute;left:5px;top:16px;bottom:0;width:2px;
+  background:var(--surface-3)}
+.journey li:last-child::before{display:none}
+.journey .j-dot{width:12px;height:12px;border-radius:50%;flex:none;margin-top:4px;
+  background:var(--surface-3);border:2px solid var(--ink);position:relative;z-index:1}
+.journey li.now .j-dot{background:var(--blood);
+  box-shadow:0 0 0 4px rgba(179,37,42,.18)}
+.journey .j-t{font-weight:700;font-size:14.5px;letter-spacing:-.012em}
+.journey li:not(.now) .j-t{color:var(--muted)}
+.journey .j-w{display:flex;align-items:center;gap:6px;margin-top:3px;
+  font-size:13px;color:var(--text);font-weight:600}
+.journey li:not(.now) .j-w{color:var(--muted);font-weight:500}
+.journey .j-w svg{color:var(--blood-2);flex:none}
+.journey .j-d{font-size:12.5px;color:var(--muted);margin-top:3px}
+.journey .j-m{font-size:11.5px;color:var(--ghost);margin-top:4px;
+  font-variant-numeric:tabular-nums}
+
+/* a place on an admin history line */
+.ev .place{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--muted)}
+.ev .place svg{color:var(--blood-2);width:12px;height:12px}
+.ev form{display:flex}
+.ev .iconbtn{width:26px;height:26px}
+
+/* ---------- the sticky pay bar ----------
+   Desktop keeps the summary rail; phones get this instead. */
+.paybar{display:none}
+@media (max-width:980px){
+  .paybar{position:fixed;left:0;right:0;bottom:0;z-index:60;display:flex;
+    align-items:center;gap:14px;padding:12px 16px calc(12px + env(safe-area-inset-bottom));
+    background:rgba(10,10,11,.92);backdrop-filter:blur(16px) saturate(140%);
+    -webkit-backdrop-filter:blur(16px) saturate(140%);
+    border-top:1px solid var(--edge)}
+  .paybar .pb-sum{display:grid;gap:1px;flex:none}
+  .paybar .pb-k{font-size:10.5px;font-weight:700;letter-spacing:.07em;
+    text-transform:uppercase;color:var(--faint)}
+  .paybar .pb-v{font-size:21px;font-weight:800;letter-spacing:-.04em;
+    font-variant-numeric:tabular-nums lining-nums}
+  .paybar .btn{flex:1;width:auto;min-height:50px}
+  /* room for the bar so it never covers the last field */
+  .co{padding-bottom:96px}
+  /* the summary rail keeps the price visible up top but loses its own button */
+  .co .rail .btn.wide{display:none}
+  .co .rail .hold-note{margin-top:2px}
+}
+
+/* sign in with Google */
+.gbtn{gap:11px;font-weight:700}
+.gbtn svg{flex:none}
+.orline{display:flex;align-items:center;gap:12px;margin:18px 0 6px;
+  color:var(--ghost);font-size:12px}
+.orline::before,.orline::after{content:'';height:1px;flex:1;background:var(--edge-2)}

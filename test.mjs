@@ -788,6 +788,52 @@ head('assets are fingerprinted so a deploy actually reaches people');
      bare.headers.get('cache-control'));
 }
 
+head('email setup — the one free route that actually delivers');
+jar = {};
+await go('/admin/login', form({ pin: '778899' }));
+r = await go('/admin');
+ok('Email is one tap from the admin home, not buried in settings',
+   r.text.includes('/admin/setup/email'));
+r = await go('/admin/setup/email');
+ok('the email page loads for an admin', r.status === 200);
+ok('Gmail is offered as the free place to start',
+   r.text.includes('Gmail') && r.text.includes('Free — start here'));
+ok('it explains why a relay is not the answer without a domain',
+   r.text.includes('Brevo, Mailjet, Resend, SMTP2GO') && r.text.includes('domain'));
+ok('it warns off Outlook before an evening is wasted on it',
+   r.text.includes('16 September 2024'));
+
+r = await go('/admin/setup/email?p=gmail');
+ok('picking Gmail fills the server in for you',
+   r.text.includes('name="smtp_host" value="smtp.gmail.com"')
+   && r.text.includes('name="smtp_port" value="587"'));
+ok('it links straight to Google’s app-password page',
+   r.text.includes('https://myaccount.google.com/apppasswords'));
+ok('and to 2-step verification, which has to be on first',
+   r.text.includes('https://myaccount.google.com/signinoptions/twosv'));
+ok('Gmail is not asked for a send-from address that Google would overwrite',
+   !r.text.includes('name="smtp_from"'));
+
+await go('/admin/setup/email', form({
+  p: 'gmail', smtp_host: 'smtp.gmail.com', smtp_port: '587',
+  smtp_user: 'shop@gmail.com', smtp_pass: 'abcd efgh ijkl mnop',
+}));
+r = await go('/admin/setup/email?p=gmail');
+ok('an app password pasted with Google’s spaces is stored without them',
+   r.text.includes('value="abcdefghijklmnop"'), 'the spaces were kept — Google would reject it');
+ok('filling the form in is what switches email on, with no second toggle',
+   r.text.includes('Prove it works'));
+
+await go('/admin/setup/email', form({
+  p: 'custom', smtp_host: 'nosuchmail.invalid', smtp_port: '587',
+  smtp_user: 'shop@example.com', smtp_pass: 'whatever',
+}));
+r = await go('/admin/setup/email/test', form({ to: 'shop@example.com' }));
+ok('a failed test says what is wrong in English',
+   /no\+server\+by\+that\+name|no%20server%20by%20that%20name/.test(r.loc || ''), r.loc);
+ok('and never shows raw SMTP jargon to the shop owner',
+   !/ENOTFOUND|EAI_AGAIN|getaddrinfo/.test(r.loc || ''), r.loc);
+
 head('login throttle');
 jar = {};
 let blocked = false;

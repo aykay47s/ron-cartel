@@ -480,6 +480,121 @@ head('live viewer count is real, not theatre');
   ok('the shop page still renders', sold.status === 200);
 }
 
+head('categories, announcements, and posting a tracking update');
+{
+  await go('/admin/login', form({ pin: '778899' }));
+
+  /* two shelves */
+  await go('/admin/products', form({
+    name: 'Brand new Ultra Bee', blurb: 'Untouched', price: '5200.00',
+    status: 'stock', position: '9', category: 'new',
+  }));
+  const shop = await go('/');
+  ok('the shop lists a Grafted section', shop.text.includes('Grafted builds'));
+  ok('and a Brand new section', shop.text.includes('Brand new'));
+  ok('the new bike lands on the new shelf',
+     shop.text.indexOf('Brand new Ultra Bee') > shop.text.indexOf('>Brand new<'));
+
+  /* the hero comes out of settings */
+  await go('/admin/settings', form({
+    shop_name: 'Ron Cartel', hero_line1: 'Cheapest grafted', hero_line2: 'Sur-Rons going.',
+    hero_stat1_k: 'Top speed', hero_stat1_v: '56mph',
+  }));
+  const hero = await go('/');
+  ok('the headline is whatever settings says', hero.text.includes('Sur-Rons going.'));
+  ok('and the speed is in mph', hero.text.includes('56mph'));
+  ok('nothing is measured in km/h any more', !hero.text.includes('km/h'));
+
+  /* the announcement bar */
+  const quiet = await go('/');
+  ok('no bar when there is nothing to announce', !quiet.text.includes('class="announce"'));
+  await go('/admin/settings', form({
+    shop_name: 'Ron Cartel', announce_on: 'on', announce_text: 'Two 72V builds land Friday',
+  }));
+  const loud = await go('/');
+  ok('the bar shows when it is switched on',
+     loud.text.includes('class="announce"') && loud.text.includes('land Friday'));
+
+  /* a tracking update with a place on it */
+  const shopT = await go('/');
+  const tPid = (shopT.text.match(/href="\/p\/(\d+)/) || [])[1];
+  const dIds = [...(await go('/admin/delivery')).text
+    .matchAll(/action="\/admin\/delivery\/(\d+)"/g)].map((m) => m[1]);
+  const placed = await go('/checkout', form({
+    id: tPid, qty: '1', delivery_id: dIds[0], method: 'bank', country: 'GB',
+    cust_name: 'Kes Ward', cust_email: 'kes@example.com', address: '4 Test Way',
+  }));
+  const ref = String(placed.loc).split('/').pop();
+
+  await go(`/admin/orders/${ref}/update`, form({
+    template: 'hub', location: 'Lutterworth hub', detail: 'Due tomorrow before 1pm',
+  }));
+  const cust = await go(`/order/${ref}`);
+  ok('the customer sees where it is', cust.text.includes('Lutterworth hub'));
+  ok('with the stage named', cust.text.includes('At the sorting hub'));
+  ok('and the note', cust.text.includes('Due tomorrow before 1pm'));
+
+  const adminOrder = await go(`/admin/orders/${ref}`);
+  ok('admin shows the update form', adminOrder.text.includes('Post an update'));
+  ok('and the proofs panel', adminOrder.text.includes('Proof of payment'));
+
+  const list = await go('/admin');
+  ok('order rows are clickable', list.text.includes('rowlink'));
+
+  /* a made-up update is impossible: no label, no event */
+  const before = (await go(`/order/${ref}`)).text;
+  await go(`/admin/orders/${ref}/update`, form({ template: '', label: '', location: 'Nowhere' }));
+  const after = (await go(`/order/${ref}`)).text;
+  ok('an update with no label is refused', !after.includes('Nowhere'));
+}
+
+head('the phone can order without scrolling back up');
+{
+  const shopM = await go('/');
+  const mPid = (shopM.text.match(/href="\/p\/(\d+)/) || [])[1];
+  const co = await go('/checkout?id=' + mPid + '&qty=1');
+  ok('there is a sticky pay bar', co.text.includes('class="paybar"'));
+  ok('it carries the same total', co.text.includes('id="pbTotal"'));
+  ok('and it submits the same form', /form="coform"[^>]*>\s*[\s\S]{0,80}pbTxt/.test(co.text)
+     || co.text.includes('id="pbTxt"'));
+}
+
+head('sign in with Google');
+{
+  await go('/admin/login', form({ pin: '778899' }));
+  ok('the setup page loads', (await go('/admin/setup/google')).status === 200);
+
+  const off = await go('/signin');
+  ok('no Google button until it is configured', !off.text.includes('Continue with Google'));
+  const blocked = await go('/auth/google');
+  ok('and the route refuses to start',
+     decodeURIComponent(String(blocked.loc)).includes('not set up'), blocked.loc);
+
+  await go('/admin/setup/google', form({
+    google_client_id: '123.apps.googleusercontent.com', google_client_secret: 'shh',
+  }));
+  const on = await go('/signin');
+  ok('the button appears once configured', on.text.includes('Continue with Google'));
+  ok('and on sign-up too', (await go('/signup')).text.includes('Continue with Google'));
+
+  const start = await go('/auth/google');
+  ok('starting a sign-in redirects to Google',
+     String(start.loc).startsWith('https://accounts.google.com/'), start.loc);
+  ok('carrying our client id', String(start.loc).includes('123.apps.googleusercontent.com'));
+
+  /* A callback that did not start in this browser must be refused, or anyone
+     could sign a victim into their own account with a crafted link. */
+  const forged = await fetch(B + '/auth/google/callback?code=abc&state=made-up',
+    { redirect: 'manual' });
+  ok('a callback with a state we never issued is refused',
+     decodeURIComponent(forged.headers.get('location') || '').includes('did not start here'),
+     forged.headers.get('location'));
+
+  const cancelled = await go('/auth/google/callback?error=access_denied');
+  ok('a cancelled sign-in comes back cleanly',
+     decodeURIComponent(String(cancelled.loc)).includes('cancelled'));
+}
+
 head('session cookies survive plain HTTP');
 {
   const r = await fetch(B + '/admin/login', {

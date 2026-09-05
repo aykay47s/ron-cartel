@@ -1,7 +1,8 @@
 import { Hono } from 'hono';
 import { q, one, many, getSettings } from './db.js';
-import { layout, esc, money, icon, bikePhoto, productArt, makeRef, STATUS_LABEL } from './ui.js';
+import { layout, esc, money, icon, flash, bikePhoto, productArt, makeRef, STATUS_LABEL } from './ui.js';
 import { seen, viewerLine } from './viewers.js';
+import { stars } from './routes-shop-extras.js';
 
 export const publicRoutes = new Hono();
 
@@ -134,6 +135,10 @@ publicRoutes.get('/p/:id', async (c) => {
      when there is nothing to say. */
   const watching = gone ? 0 : await seen(c, p.id);
   const watchLine = viewerLine(watching);
+  const reviews = s.reviews_on === '1'
+    ? await many(`select * from reviews where approved and (product_id = $1 or product_id is null)
+                  order by (product_id = $1) desc, created_at desc limit 6`, [p.id])
+    : [];
 
   const body = `
 <main class="shell pdp">
@@ -150,6 +155,28 @@ publicRoutes.get('/p/:id', async (c) => {
     <div class="price-row"><span class="price">£${money(p.price_p)}</span>
       ${p.was_p ? `<span class="was">£${money(p.was_p)}</span>` : ''}</div>
     ${watchLine ? `<p class="watching"><span class="wdot" aria-hidden="true"></span>${esc(watchLine)}</p>` : ''}
+    ${gone ? `
+    <!-- A SOLD badge with no way to say "tell me when" is demand walking out. -->
+    <div class="notifybox">
+      ${c.req.query('queued') ? `<p style="color:var(--go)">${icon.tick} You're on the list —
+        we'll email you the moment one lands.</p>`
+      : `<p><strong style="color:var(--text)">Want one of these?</strong> Leave your email
+         and you'll hear first when the next one is ready.</p>
+      ${flash('error', c.req.query('e'))}
+      <form method="post" action="/p/${p.id}/notify">
+        <input name="email" type="email" required placeholder="you@email.com" autocomplete="email">
+        <button class="btn" type="submit">${icon.mail} Tell me</button>
+      </form>`}
+    </div>` : ''}
+    ${reviews.length ? `
+    <div class="pdp-revs">
+      <div class="pdp-revs-h">${stars(Math.round(
+        reviews.reduce((n, r) => n + r.rating, 0) / reviews.length))}
+        <a href="/reviews">${reviews.length} review${reviews.length === 1 ? '' : 's'} →</a></div>
+      ${reviews.slice(0, 2).map((r) => `
+        <blockquote class="pdp-rev">"${esc(r.body.slice(0, 200))}${r.body.length > 200 ? '…' : ''}"
+          <cite>${esc(r.author)}${r.order_id ? ' · bought here' : ''}</cite></blockquote>`).join('')}
+    </div>` : ''}
 
     ${gone
       ? `<div class="note warn" style="margin-top:16px">

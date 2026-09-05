@@ -7,6 +7,7 @@ import { statusPill } from './routes-customer.js';
 import { bankConfig, createBankPayment, bankPaymentStatus } from './pay-bank.js';
 import { COURIERS, COUNTRIES, forCountry, leadTime, priceFor, reaches, countryName } from './shipping.js';
 import { bankMark, bankName } from './banks.js';
+import { niceWhen } from './tracking.js';
 
 export const checkoutRoutes = new Hono();
 
@@ -14,9 +15,10 @@ const clampQty = (v) => Math.min(9, Math.max(1, parseInt(v, 10) || 1));
 
 /* Totals are always recomputed here from the database. Nothing the browser
    sends about price or delivery cost is trusted. */
-async function priceOrder({ product, qty, option }) {
+async function priceOrder({ product, qty, option, addons = [] }) {
   const unit_p = product.price_p;
-  const subtotal_p = unit_p * qty;
+  const addons_p = addons.reduce((n, a) => n + a.price_p, 0);
+  const subtotal_p = unit_p * qty + addons_p;
   const isCollection = !!option?.is_collection;
   /* priceFor applies the option's own free-over-£X threshold. Like every
      other number here it is worked out from the database, never from the
@@ -24,7 +26,7 @@ async function priceOrder({ product, qty, option }) {
   const delivery_p = isCollection ? 0 : (option ? priceFor(option, subtotal_p) : 0);
   const depositOnly = isCollection && product.deposit_p != null && product.deposit_p > 0;
   const total_p = depositOnly ? product.deposit_p : subtotal_p + delivery_p;
-  return { unit_p, subtotal_p, delivery_p, total_p, depositOnly };
+  return { unit_p, subtotal_p, delivery_p, total_p, depositOnly, addons_p, addons };
 }
 
 checkoutRoutes.get('/checkout', async (c) => {
@@ -33,6 +35,14 @@ checkoutRoutes.get('/checkout', async (c) => {
   const product = id ? await one('select * from products where id = $1', [id]) : null;
   const s = await getSettings();
   const cust = await customerFrom(readCustomerCookie(c));
+
+  /* An account before you can pay. It means every order has somewhere to live,
+     they can see where it is without digging out a reference, and the second
+     order is two taps. Signing up is name, email, password — nothing else. */
+  if (s.account_required === '1' && !cust) {
+    const back = encodeURIComponent(c.req.path + '?' + new URLSearchParams(c.req.query()));
+    return c.redirect('/signup?next=' + back + '&why=checkout');
+  }
 
   if (!product || product.status !== 'stock') {
     const body = `<main class="shell"><div class="blank" style="margin:60px 0 90px">
@@ -76,6 +86,7 @@ checkoutRoutes.get('/checkout', async (c) => {
       <div class="hint">Changes what delivery you can pick.</div></div>`;
 
   const bank = await bankConfig();
+  const addons = await many('select * from addons where enabled order by position, id');
 
   const method = (id, label, note, ic, tag, on) => `
     <label class="opt pay${on ? ' sel' : ''}" data-pay="${id}">
@@ -154,6 +165,25 @@ checkoutRoutes.get('/checkout', async (c) => {
       <div class="panel-b rows-flush" id="ship">${shipRows}</div>
     </section>
 
+    ${addons.length ? `
+    <!-- Offered after they have decided on the bike, which is the moment a
+         helmet is an easy yes. Prices are recomputed server-side like
+         everything else. -->
+    <section class="panel spot rv" style="margin-bottom:18px">
+      <div class="panel-h"><span class="hico" aria-hidden="true">${icon.plus}</span>
+        <h3>Anything else while you're here?</h3></div>
+      <div class="panel-b rows-flush" id="extras">
+        ${addons.map((a) => `
+          <label class="opt add" data-addon="${a.id}" data-price="${a.price_p}">
+            <input type="checkbox" name="addon" value="${a.id}">
+            <span class="addbox" aria-hidden="true">${icon.tick}</span>
+            <span class="otxt"><span class="t">${esc(a.name)}</span>
+              ${a.blurb ? `<span class="s">${esc(a.blurb)}</span>` : ''}</span>
+            <span class="oprice">+£${money(a.price_p)}</span>
+          </label>`).join('')}
+      </div>
+    </section>` : ''}
+
     <section class="panel spot rv">
       <div class="panel-h"><span class="hico" aria-hidden="true"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2.5"/><path d="M2 10h20"/></svg></span>
         <h3>Payment method</h3></div>
@@ -171,7 +201,8 @@ checkoutRoutes.get('/checkout', async (c) => {
             <div class="li-s">Qty ${qty}</div></div>
           <div class="li-p">£${money(priced.subtotal_p)}</div>
         </div>
-        <div class="sum-row"><span>Subtotal</span><b>£${money(priced.subtotal_p)}</b></div>
+        <div class="sum-row"><span>Subtotal</span><b id="subVal">£${money(priced.subtotal_p)}</b></div>
+        <div class="sum-row" id="addRow" hidden><span>Extras</span><b id="addVal">£0.00</b></div>
         <div class="sum-row"><span>Delivery</span><b id="shipVal">${priced.delivery_p === 0 ? 'Free' : '£' + money(priced.delivery_p)}</b></div>
         <div class="sum-total"><span class="lbl" id="totalLabel">${priced.depositOnly ? 'Deposit due' : 'Total'}</span>
           <span class="amt"><span aria-hidden="true">£</span><span id="grand" class="num">${money(priced.total_p)}</span></span></div>
@@ -205,13 +236,29 @@ checkoutRoutes.get('/checkout', async (c) => {
 
 <script>
 (function(){
-  var SUB = ${priced.subtotal_p}, DEP = ${product.deposit_p || 0};
+  var BIKE = ${product.price_p * qty}, DEP = ${product.deposit_p || 0};
+  function extras(){
+    var n = 0;
+    document.querySelectorAll('#extras .opt.sel').forEach(function(o){
+      n += parseInt(o.dataset.price, 10) || 0;
+    });
+    return n;
+  }
   function paint(){
     var sel = document.querySelector('#ship .opt.sel');
     var collect = sel && sel.dataset.collect === '1';
     var ship = sel ? parseInt(sel.dataset.price, 10) : 0;
+    var add = extras();
+    var SUB = BIKE + add;
     var depositOnly = collect && DEP > 0;
     var total = depositOnly ? DEP : SUB + ship;
+    var subEl = document.getElementById('subVal');
+    if (subEl) subEl.textContent = '£' + (SUB/100).toFixed(2);
+    var addRow = document.getElementById('addRow');
+    if (addRow) {
+      addRow.hidden = add === 0;
+      document.getElementById('addVal').textContent = '£' + (add/100).toFixed(2);
+    }
     document.getElementById('shipVal').textContent = ship === 0 ? 'Free' : '£' + (ship/100).toFixed(2);
     document.getElementById('grand').textContent = (total/100).toFixed(2);
     document.getElementById('totalLabel').textContent = depositOnly ? 'Deposit due' : 'Total';
@@ -234,6 +281,16 @@ checkoutRoutes.get('/checkout', async (c) => {
       });
     });
   }
+  /* Add-ons are tick boxes, not a pick-one group — each toggles on its own. */
+  document.querySelectorAll('#extras .opt').forEach(function(o){
+    o.addEventListener('click', function(e){
+      if (e.target.tagName !== 'INPUT') {
+        var b = o.querySelector('input'); b.checked = !b.checked;
+      }
+      o.classList.toggle('sel', o.querySelector('input').checked);
+      paint();
+    });
+  });
   group('#ship'); group('#pay'); paint();
 })();
 </script>`;
@@ -262,7 +319,13 @@ checkoutRoutes.post('/checkout', async (c) => {
   if (method === 'bankpay' && !bank.ready)                    return c.redirect('/');
   if (method === 'crezco'  && !(s.crezco_on === '1' && s.crezco_link)) return c.redirect('/');
 
-  const priced = await priceOrder({ product, qty, option });
+  /* The browser posts ids; the prices come from the database. Same rule as
+     everything else on this page. */
+  const wanted = [].concat(form.addon || []).map((v) => Number(v)).filter(Boolean);
+  const chosen = wanted.length
+    ? await many(`select * from addons where enabled and id = any($1::int[])`, [wanted])
+    : [];
+  const priced = await priceOrder({ product, qty, option, addons: chosen });
   const cust = await customerFrom(readCustomerCookie(c));
 
   /* Retry on the tiny chance of a reference collision. */
@@ -303,8 +366,14 @@ checkoutRoutes.post('/checkout', async (c) => {
       .catch(() => {});
   }
 
+  for (const a of chosen) {
+    await q('insert into order_addons (order_id, name, price_p) values ($1,$2,$3)',
+            [order.id, a.name, a.price_p]);
+  }
+
   await q('insert into order_events (order_id, label, detail) values ($1,$2,$3)',
-          [order.id, 'Order placed', `${order.product_name} × ${order.qty}`]);
+          [order.id, 'Order placed', `${order.product_name} × ${order.qty}`
+            + (chosen.length ? ' + ' + chosen.map((a) => a.name).join(', ') : '')]);
   if (order.cust_email) {
     const t = templates.orderPlaced(order, s);
     sendMailSafe({ to: order.cust_email, ...t });
@@ -462,14 +531,16 @@ checkoutRoutes.get('/order/:ref', async (c) => {
       <h3>Where it is</h3></div>
     <div class="panel-b">
       <ol class="journey">
-        ${events.slice().reverse().map((e, i) => `
+        ${events.slice().sort((a, b) =>
+            new Date(b.happened_at || b.created_at) - new Date(a.happened_at || a.created_at))
+          .map((e, i) => `
           <li class="${i === 0 ? 'now' : ''}">
             <span class="j-dot" aria-hidden="true"></span>
             <div class="j-b">
               <div class="j-t">${esc(e.label)}</div>
               ${e.location ? `<div class="j-w">${icon.pin}${esc(e.location)}</div>` : ''}
               ${e.detail ? `<div class="j-d">${esc(e.detail)}</div>` : ''}
-              <div class="j-m">${when(e.created_at)}</div>
+              <div class="j-m">${esc(niceWhen(e.happened_at || e.created_at))}</div>
             </div>
           </li>`).join('')}
       </ol>

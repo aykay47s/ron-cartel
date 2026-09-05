@@ -11,6 +11,8 @@ import { adminRoutes } from './routes-admin.js';
 import { customerRoutes } from './routes-customer.js';
 import { legalRoutes } from './routes-legal.js';
 import { setupRoutes } from './routes-setup.js';
+import { trackingRoutes } from './routes-tracking.js';
+import { extraRoutes } from './routes-shop-extras.js';
 import { layout, icon } from './ui.js';
 
 const app = new Hono();
@@ -65,6 +67,8 @@ app.get('/assets/*', async (c) => {
 app.get('/healthz', (c) => c.text('ok'));
 
 app.route('/', setupRoutes);
+app.route('/', trackingRoutes);
+app.route('/', extraRoutes);
 app.route('/', adminRoutes);
 app.route('/', customerRoutes);
 app.route('/', legalRoutes);

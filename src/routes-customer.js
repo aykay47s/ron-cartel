@@ -65,9 +65,12 @@ customerRoutes.get('/auth/google/callback', async (c) => {
 customerRoutes.get('/signup', async (c) => {
   const s = await getSettings();
   const body = box(`
-    <p class="eyebrow" style="margin:0 0 9px">Create an account</p>
-    <h1 class="display" style="font-size:clamp(25px,3.3vw,34px)">Track your <span class="lit">orders</span></h1>
-    <p class="lede" style="font-size:14.5px">One account, so you can see every order you've placed and where it's got to.</p>
+    <p class="eyebrow" style="margin:0 0 9px">${c.req.query('why') === 'checkout' ? 'One quick step' : 'Create an account'}</p>
+    <h1 class="display" style="font-size:clamp(25px,3.3vw,34px)">${c.req.query('why') === 'checkout'
+      ? 'Almost <span class="lit">there</span>' : 'Track your <span class="lit">orders</span>'}</h1>
+    <p class="lede" style="font-size:14.5px">${c.req.query('why') === 'checkout'
+      ? 'Three boxes and you\'re at the checkout. It means you can see where your bike is any time without digging out a reference, and next time it is two taps.'
+      : "One account, so you can see every order you've placed and where it's got to."}</p>
     ${flash('error', c.req.query('e'))}
     ${(await googleConfig()).ready ? `
       <a class="btn ghost wide gbtn" style="margin-top:20px"

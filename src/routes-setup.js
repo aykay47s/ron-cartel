@@ -29,6 +29,7 @@ const wrap = (title, active, inner) => `<main class="shell adm">
   </div></div>
   <div class="tabs" role="tablist">
     <a href="/admin">${icon.bank} Orders</a>
+    <a href="/admin/tracking">${icon.pin} Tracking</a>
     <a href="/admin/products">${icon.box} Products</a>
     <a href="/admin/delivery"${active === 'delivery' ? ' class="on"' : ''}>${icon.truck} Delivery</a>
     <a href="/admin/settings"${active === 'settings' ? ' class="on"' : ''}>${icon.cog} Settings</a>

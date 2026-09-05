@@ -175,6 +175,56 @@ const MIGRATIONS = [
 
   /* Order updates carry a place now, so "where is it" has an answer. */
   `alter table order_events add column if not exists location text not null default ''`,
+
+  /* Updates can be backdated — "collected yesterday at 4" is a thing you type
+     the morning after, and a timeline that lies about when is worse than none. */
+  `alter table order_events add column if not exists happened_at timestamptz`,
+  `update order_events set happened_at = created_at where happened_at is null`,
+
+  /* Tell me when it's back. Captures the demand that currently walks away
+     from a SOLD badge. */
+  `create table if not exists waitlist (
+     id serial primary key,
+     product_id int not null references products(id) on delete cascade,
+     email text not null,
+     created_at timestamptz not null default now(),
+     notified_at timestamptz,
+     unique (product_id, email)
+   )`,
+
+  /* Bolt-ons offered at checkout. Priced in pence like everything else. */
+  `create table if not exists addons (
+     id serial primary key,
+     name text not null,
+     blurb text not null default '',
+     price_p int not null default 0,
+     image_id int references images(id) on delete set null,
+     enabled boolean not null default true,
+     position int not null default 0
+   )`,
+  `create table if not exists order_addons (
+     id serial primary key,
+     order_id int not null references orders(id) on delete cascade,
+     name text not null,
+     price_p int not null default 0
+   )`,
+
+  /* Reviews. `order_id` is what makes one verified — it means this person
+     actually bought the thing. Anything imported from elsewhere carries its
+     source and a link back, so it can be checked. */
+  `create table if not exists reviews (
+     id serial primary key,
+     author text not null,
+     rating int not null default 5,
+     title text not null default '',
+     body text not null default '',
+     source text not null default 'site',
+     source_url text not null default '',
+     product_id int references products(id) on delete set null,
+     order_id int references orders(id) on delete set null,
+     approved boolean not null default false,
+     created_at timestamptz not null default now()
+   )`,
   /* Shops seeded before couriers existed showed "No courier" against a row
      that plainly said Royal Mail. Name them once; anything already set is
      left alone. */
@@ -247,6 +297,9 @@ const DEFAULT_SETTINGS = {
   google_client_id: '',
   google_client_secret: '',
 
+  /* make an account before you can check out */
+  account_required: '1',
+  reviews_on: '1',
   bank_which: '',
   crezco_on: '',
   crezco_link: '',

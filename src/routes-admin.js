@@ -475,6 +475,24 @@ adminRoutes.get('/admin/settings', async (c) => {
         <span class="sc-s">${s.google_client_id ? 'On — one button, no password' : 'Not set up yet'}</span>
         <span class="sc-go">${s.google_client_id ? 'Change' : 'Set it up'} →</span>
       </a>
+      <a class="setup-card" href="/admin/reviews">
+        <span class="sc-ico">${icon.star}</span>
+        <span class="sc-t">Reviews</span>
+        <span class="sc-s">Publish, hide, or add ones left elsewhere</span>
+        <span class="sc-go">Open →</span>
+      </a>
+      <a class="setup-card" href="/admin/addons">
+        <span class="sc-ico">${icon.plus}</span>
+        <span class="sc-t">Add-ons</span>
+        <span class="sc-s">Offered at checkout</span>
+        <span class="sc-go">Open →</span>
+      </a>
+      <a class="setup-card" href="/admin/waitlist">
+        <span class="sc-ico">${icon.mail}</span>
+        <span class="sc-t">Waiting list</span>
+        <span class="sc-s">People asking to be told</span>
+        <span class="sc-go">Open →</span>
+      </a>
       <a class="setup-card" href="/admin/delivery">
         <span class="sc-ico">${icon.truck}</span>
         <span class="sc-t">Delivery</span>
@@ -521,6 +539,25 @@ adminRoutes.get('/admin/settings', async (c) => {
           </div>
         </section>
       </div>
+
+      <section class="panel spot" style="margin-top:18px">
+        <div class="panel-h"><span class="hico" aria-hidden="true">${icon.lock}</span><h3>How people buy</h3></div>
+        <div class="panel-b">
+          <!-- Tick boxes send nothing when they are off, so a marker field says
+               "this form really did carry this section". Without it, saving any
+               other panel would silently switch both of these off. -->
+          <input type="hidden" name="buying_section" value="1">
+          <label class="chk" style="margin-bottom:12px">
+            <input type="checkbox" name="account_required" ${s.account_required === '1' ? 'checked' : ''}>
+            Make them create an account before checkout</label>
+          <div class="hint" style="margin-bottom:16px">On, every order belongs to someone
+            who can look it up themselves. Off, anyone can buy as a guest and they track
+            with a reference. Signing up is three boxes either way.</div>
+          <label class="chk">
+            <input type="checkbox" name="reviews_on" ${s.reviews_on === '1' ? 'checked' : ''}>
+            Show the reviews page</label>
+        </div>
+      </section>
 
       <section class="panel spot" style="margin-top:18px">
         <div class="panel-h"><span class="hico" aria-hidden="true">${icon.spark}</span><h3>Announcement bar</h3></div>
@@ -708,6 +745,10 @@ adminRoutes.post('/admin/settings', async (c) => {
   /* A checkbox that is off sends nothing, so it can only be read from a form
      that carried the announcement fields at all. */
   if (f.announce_text !== undefined) patch.announce_on = f.announce_on != null ? '1' : '';
+  if (f.buying_section !== undefined) {
+    patch.account_required = f.account_required != null ? '1' : '';
+    patch.reviews_on = f.reviews_on != null ? '1' : '';
+  }
   await setSettings(patch);
   return c.redirect('/admin/settings?ok=1');
 });
@@ -742,6 +783,7 @@ function adminShell(active, inner) {
     </div></div>
     <div class="tabs" role="tablist">
       ${tab('/admin', 'orders', 'Orders', icon.bank)}
+      ${tab('/admin/tracking', 'tracking', 'Tracking', icon.pin)}
       ${tab('/admin/products', 'products', 'Products', icon.box)}
       ${tab('/admin/delivery', 'delivery', 'Delivery', icon.truck)}
       ${tab('/admin/settings', 'settings', 'Settings', icon.cog)}

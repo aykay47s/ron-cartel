@@ -461,3 +461,80 @@ setupRoutes.post('/admin/setup/openbanking/live', async (c) => {
   await setSettings({ crezco_on: String(f.on) === '1' ? '1' : '' });
   return c.redirect('/admin/setup/openbanking');
 });
+
+/* ------------------------------------------------------------------ *
+ *  SIGN IN WITH GOOGLE
+ * ------------------------------------------------------------------ */
+setupRoutes.get('/admin/setup/google', async (c) => {
+  const s = await getSettings();
+  const ready = !!(s.google_client_id && s.google_client_secret);
+  const base = String(s.site_url || '').replace(/\/$/, '')
+    || `${(c.req.header('x-forwarded-proto') || 'http').split(',')[0]}://${c.req.header('host')}`;
+  const redirect = base + '/auth/google/callback';
+
+  const body = wrap('Let people sign in with Google', 'google', `
+    ${flash('error', c.req.query('e'))}
+    ${c.req.query('ok') ? flash('info', 'Saved. Try it from the sign-in page.') : ''}
+    <p class="lede" style="max-width:60ch;margin-bottom:26px">
+      One button instead of inventing another password. It also solves the
+      forgotten-password problem, which matters because there is no way to send
+      a reset link until email is set up.</p>
+
+    ${step(1, 'Make a Google project', `
+      <p>In the Google Cloud console: <strong>APIs &amp; Services → Credentials →
+      Create credentials → OAuth client ID</strong>, and pick <strong>Web
+      application</strong>. It will ask you to fill in a consent screen first —
+      "External" is the right answer, and you only need the app name, your email
+      and a logo.</p>
+      <a class="btn ghost sm" href="https://console.cloud.google.com/apis/credentials"
+         target="_blank" rel="noopener noreferrer">${icon.globe} Open the Google console</a>`,
+      ready ? 'done' : '')}
+
+    ${step(2, 'Paste this in as the redirect URI', `
+      <p>Google will not let anyone in unless the address they come back to
+      matches <em>exactly</em>. Put this under
+      <strong>Authorised redirect URIs</strong>:</p>
+      <div class="plate" style="margin-bottom:12px">
+        <div class="pk">Authorised redirect URI</div>
+        <div class="pv" style="font-size:15px;letter-spacing:.02em">${esc(redirect)}</div>
+        <button class="copy" type="button" data-copyval="${esc(redirect)}"
+          style="margin-top:12px">${icon.copy} Copy it</button>
+      </div>
+      ${!s.site_url ? `<div class="note warn">${icon.spark}
+        <div>That address is guessed from the page you are on. Set
+        <strong>Site URL</strong> in Settings once you have a domain, or Google
+        will bounce people the day you get one.</div></div>` : ''}`,
+      ready ? 'done' : '')}
+
+    ${step(3, 'Bring the two keys back', `
+      <form method="post" action="/admin/setup/google">
+        <div class="field"><label for="gid">Client ID</label>
+          <input id="gid" name="google_client_id" value="${esc(s.google_client_id)}"
+                 maxlength="200" placeholder="…apps.googleusercontent.com"></div>
+        <div class="field"><label for="gsec">Client secret</label>
+          <input id="gsec" name="google_client_secret" type="password"
+                 value="${esc(s.google_client_secret)}" maxlength="200" autocomplete="off"></div>
+        <button class="btn" type="submit">${icon.tick} Save</button>
+      </form>
+      ${ready ? `<p class="hint" style="margin-top:14px">The button is live on
+        <a href="/signin" style="color:var(--blood-2)">the sign-in page</a>.</p>` : ''}`,
+      ready ? 'done' : '')}
+
+    <div class="note info" style="margin-top:26px">${icon.spark}
+      <div><strong>Apple ID.</strong> Not built yet, and it is a bigger job —
+      Apple wants a paid developer account (£79 a year) and a signing key that
+      has to be renewed every six months. Google covers nearly everyone and
+      costs nothing. Say the word if you want Apple as well.</div></div>
+  `);
+  return c.html(layout({ title: 'Google sign-in — Setup', body, active: 'admin',
+    admin: c.get('admin'), settings: s }));
+});
+
+setupRoutes.post('/admin/setup/google', async (c) => {
+  const f = await c.req.parseBody();
+  await setSettings({
+    google_client_id: String(f.google_client_id || '').trim().slice(0, 200),
+    google_client_secret: String(f.google_client_secret || '').trim().slice(0, 200),
+  });
+  return c.redirect('/admin/setup/google?ok=1');
+});

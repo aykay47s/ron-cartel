@@ -189,6 +189,40 @@ export async function customerLogin(email, password) {
   return { token, expires, customer: cust };
 }
 
+/* Start a session for a customer we have already established is who they say
+   they are — used by Sign in with Google, where the proof came from Google
+   rather than from a password. */
+export async function beginCustomerSession(cust) {
+  const token = randomBytes(32).toString('hex');
+  const expires = new Date(Date.now() + 30 * 864e5);
+  await q('insert into customer_sessions (token, customer_id, expires_at) values ($1,$2,$3)',
+          [token, cust.id, expires]);
+  return { token, expires, customer: cust };
+}
+
+/* Find them by email, or make the account. Someone signing in with Google for
+   the first time should not have to fill in a form to buy something. */
+export async function customerFromGoogle({ email, name }) {
+  const found = await one('select * from customers where email = lower($1)',
+                          [String(email).trim()]);
+  if (found) {
+    /* Fill in a name we did not have. Never overwrite one they set. */
+    if (!found.name && name) {
+      await q('update customers set name = $1 where id = $2', [String(name).slice(0, 80), found.id]);
+      found.name = name;
+    }
+    return found;
+  }
+  /* No password. The pass_hash column is not null, so store a value that can
+     never match a login attempt — verifyPassword needs a salt:hash pair and
+     this is deliberately not one. */
+  return one(
+    `insert into customers (email, pass_hash, name, phone, address)
+     values (lower($1), $2, $3, '', '') returning *`,
+    [String(email).trim(), 'google-account-no-password', String(name || '').slice(0, 80)]
+  );
+}
+
 export async function customerFrom(token) {
   if (!token) return null;
   return one(

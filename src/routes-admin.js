@@ -6,6 +6,7 @@ import {
 } from './auth.js';
 import { layout, esc, money, pence, icon, productArt, flash, STATUS_LABEL } from './ui.js';
 import { BANKS } from './banks.js';
+import { UPDATE_TEMPLATES, templateLabel } from './tracking.js';
 import { sendMailSafe, templates } from './mail.js';
 
 export const adminRoutes = new Hono();
@@ -72,15 +73,17 @@ adminRoutes.get('/admin', async (c) => {
 
   const where = [];
   const args = [];
-  if (filter === 'awaiting' || filter === 'paid') { args.push(filter); where.push(`status = $${args.length}`); }
+  if (filter === 'awaiting' || filter === 'paid') { args.push(filter); where.push(`o.status = $${args.length}`); }
   if (search) {
     args.push('%' + search.toLowerCase() + '%');
-    where.push(`(lower(ref) like $${args.length} or lower(cust_name) like $${args.length}
-                 or lower(product_name) like $${args.length})`);
+    where.push(`(lower(o.ref) like $${args.length} or lower(o.cust_name) like $${args.length}
+                 or lower(o.product_name) like $${args.length})`);
   }
   const orders = await many(
-    `select * from orders ${where.length ? 'where ' + where.join(' and ') : ''}
-     order by (status = 'awaiting') desc, created_at desc limit 200`, args);
+    `select o.*,
+            (select count(*)::int from payment_proofs pp where pp.order_id = o.id) as proofs
+       from orders o ${where.length ? 'where ' + where.join(' and ') : ''}
+      order by (o.status = 'awaiting') desc, o.created_at desc limit 200`, args);
 
   const stats = await one(`
     select count(*) filter (where status='awaiting')::int as awaiting,
@@ -92,19 +95,25 @@ adminRoutes.get('/admin', async (c) => {
   const rows = orders.length ? orders.map((o) => {
     const paid = o.status === 'paid';
     const hit = search && o.ref.toLowerCase() === search.toLowerCase();
-    return `<div class="tr${hit ? ' hit' : ''}${paid ? ' settled' : ''}">
+    /* The whole row opens the order. The reference alone was a link, styled
+       to look like plain text, which is why nobody found the proof uploads. */
+    return `<div class="tr rowlink${hit ? ' hit' : ''}${paid ? ' settled' : ''}"
+                 onclick="if(!event.target.closest('form'))location='/admin/orders/${esc(o.ref)}'">
       <div class="refc"><a href="/admin/orders/${esc(o.ref)}" style="color:inherit">${esc(o.ref)}</a></div>
       <div><div class="cust">${esc(o.cust_name || '—')}</div>
         <div class="item">${esc(o.product_name)} × ${o.qty}</div>
-        <div class="via">${o.method === 'ppff' ? 'PayPal F&amp;F' : 'Bank transfer'}${o.is_deposit ? ' · deposit' : ''}</div></div>
+        <div class="via">${o.method === 'ppff' ? 'PayPal F&amp;F' : 'Bank transfer'}${o.is_deposit ? ' · deposit' : ''}</div>
+        ${o.proofs > 0 ? `<div class="proofcount">${icon.camera}
+          ${o.proofs} proof${o.proofs === 1 ? '' : 's'} uploaded</div>` : ''}</div>
       <div class="amtc">£${money(o.total_p)}</div>
       <div>${paid
         ? '<span class="pill paid"><i></i>Confirmed</span>'
         : '<span class="pill await"><i></i>Awaiting</span>'}</div>
-      <div style="display:flex;justify-content:flex-end">
+      <div style="display:flex;justify-content:flex-end;align-items:center;gap:10px">
         <form method="post" action="/admin/orders/${esc(o.ref)}/${paid ? 'unpaid' : 'paid'}">
           <button class="btn ${paid ? 'ghost ' : ''}sm" type="submit">${paid ? 'Undo' : icon.tick + ' Mark paid'}</button>
-        </form></div>
+        </form>
+        <span class="rowgo" aria-hidden="true">${icon.chev}</span></div>
     </div>`;
   }).join('') : '<div class="empty">No orders yet.</div>';
 
@@ -177,6 +186,43 @@ adminRoutes.post('/admin/orders/:ref/dispatch', async (c) => {
 });
 
 /* ---------------- one order ---------------- */
+/* Post a tracking update. The shop owner picks a line and types where it is;
+   nothing here guesses a position. */
+adminRoutes.post('/admin/orders/:ref/update', async (c) => {
+  const f = await c.req.parseBody();
+  const ref = c.req.param('ref');
+  const o = await one('select * from orders where ref = $1', [ref.toUpperCase()]);
+  if (!o) return c.notFound();
+
+  const label = (templateLabel(String(f.template || '')) || String(f.label || '')).slice(0, 80);
+  if (!label) return c.redirect(`/admin/orders/${ref}?e=` +
+    encodeURIComponent('Pick an update or write your own.'));
+
+  await q(`insert into order_events (order_id, label, detail, location)
+           values ($1,$2,$3,$4)`,
+    [o.id, label, String(f.detail || '').slice(0, 200), String(f.location || '').slice(0, 120)]);
+
+  /* Tell them it moved, if we can. Silence between "paid" and "it turned up"
+     is what generates the "any update?" messages. */
+  if (f.notify === 'on' && o.cust_email) {
+    const s = await getSettings();
+    const where = String(f.location || '').trim();
+    sendMailSafe({
+      to: o.cust_email,
+      subject: `${o.ref} — ${label}`,
+      text: `${label}${where ? ' — ' + where : ''}\n\n`
+          + `${String(f.detail || '')}\n\n`
+          + `Track it here: ${(s.site_url || '').replace(/\/$/, '')}/order/${o.ref}\n`,
+    });
+  }
+  return c.redirect(`/admin/orders/${ref}`);
+});
+
+adminRoutes.post('/admin/orders/:ref/update/:id/delete', async (c) => {
+  await q('delete from order_events where id = $1', [c.req.param('id')]);
+  return c.redirect(`/admin/orders/${c.req.param('ref')}`);
+});
+
 adminRoutes.get('/admin/orders/:ref', async (c) => {
   const o = await one('select * from orders where ref = $1', [c.req.param('ref').toUpperCase()]);
   if (!o) return c.notFound();
@@ -248,13 +294,43 @@ adminRoutes.get('/admin/orders/:ref', async (c) => {
           </div>
         </section>
 
+        <section class="panel spot" style="margin-bottom:18px">
+          <div class="panel-h"><span class="hico" aria-hidden="true">${icon.pin}</span>
+            <h3>Post an update</h3></div>
+          <div class="panel-b">
+            <form method="post" action="/admin/orders/${esc(o.ref)}/update">
+              <div class="field"><label for="tpl">What happened</label>
+                <select id="tpl" name="template">
+                  ${UPDATE_TEMPLATES.map((t) =>
+                    `<option value="${t.key}">${esc(t.label)}</option>`).join('')}
+                  <option value="">Something else…</option>
+                </select></div>
+              <div class="field"><label for="lb">Or write your own</label>
+                <input id="lb" name="label" maxlength="80" placeholder="leave blank to use the pick above"></div>
+              <div class="field"><label for="lo">Where is it</label>
+                <input id="lo" name="location" maxlength="120"
+                       placeholder="Lutterworth depot"></div>
+              <div class="field"><label for="dt">Anything to add</label>
+                <input id="dt" name="detail" maxlength="200"
+                       placeholder="e.g. due tomorrow before 1pm"></div>
+              <label class="chk" style="margin-bottom:14px">
+                <input type="checkbox" name="notify" checked> Email the customer about it</label>
+              <button class="btn wide" type="submit">${icon.tick} Post it</button>
+            </form>
+          </div>
+        </section>
+
         <section class="panel spot">
           <div class="panel-h"><span class="hico" aria-hidden="true">${icon.clock}</span><h3>History</h3></div>
           <div class="panel-b">
             ${events.length ? `<div class="hist">${events.map((e) =>
               `<div class="ev"><span class="tm">${when(e.created_at)}</span>
                <span class="lb">${esc(e.label)}</span>
-               ${e.detail ? `<span class="dt">${esc(e.detail)}</span>` : ''}</div>`).join('')}</div>`
+               ${e.location ? `<span class="place">${icon.pin}${esc(e.location)}</span>` : ''}
+               ${e.detail ? `<span class="dt">${esc(e.detail)}</span>` : ''}
+               <form method="post" action="/admin/orders/${esc(o.ref)}/update/${e.id}/delete"
+                     style="margin-left:auto"><button class="iconbtn danger" type="submit"
+                     title="Remove">${icon.bin}</button></form></div>`).join('')}</div>`
               : '<p style="margin:0;color:var(--muted);font-size:13.5px">Nothing yet.</p>'}
           </div>
         </section>
@@ -337,21 +413,23 @@ adminRoutes.post('/admin/products', async (c) => {
     deposit_p: f.deposit ? pence(f.deposit) : null,
     status: ['stock', 'reserved', 'sold'].includes(f.status) ? f.status : 'stock',
     position: Number(f.position) || 0,
+    category: f.category === 'new' ? 'new' : 'grafted',
   };
 
   if (id) {
     await q(`update products set name=$1, blurb=$2, body=$3, price_p=$4, was_p=$5,
-             deposit_p=$6, status=$7, position=$8 ${img ? ', image_id=$10' : ''}
-             where id=$9`,
+             deposit_p=$6, status=$7, position=$8, category=$10
+             ${img ? ', image_id=$11' : ''} where id=$9`,
       img ? [vals.name, vals.blurb, vals.body, vals.price_p, vals.was_p, vals.deposit_p,
-             vals.status, vals.position, id, img]
+             vals.status, vals.position, id, vals.category, img]
           : [vals.name, vals.blurb, vals.body, vals.price_p, vals.was_p, vals.deposit_p,
-             vals.status, vals.position, id]);
+             vals.status, vals.position, id, vals.category]);
   } else {
-    await q(`insert into products (name, blurb, body, price_p, was_p, deposit_p, status, position, image_id)
-             values ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+    await q(`insert into products
+               (name, blurb, body, price_p, was_p, deposit_p, status, position, image_id, category)
+             values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
       [vals.name, vals.blurb, vals.body, vals.price_p, vals.was_p, vals.deposit_p,
-       vals.status, vals.position, img]);
+       vals.status, vals.position, img, vals.category]);
   }
   return c.redirect('/admin/products');
 });
@@ -390,6 +468,12 @@ adminRoutes.get('/admin/settings', async (c) => {
         <span class="sc-t">TrueLayer</span>
         <span class="sc-s">${s.bank_pay_on ? 'On' : 'Optional — paid alternative'}</span>
         <span class="sc-go">${s.bank_pay_on ? 'Change' : 'Set it up'} →</span>
+      </a>
+      <a class="setup-card" href="/admin/setup/google">
+        <span class="sc-ico">${icon.google}</span>
+        <span class="sc-t">Sign in with Google</span>
+        <span class="sc-s">${s.google_client_id ? 'On — one button, no password' : 'Not set up yet'}</span>
+        <span class="sc-go">${s.google_client_id ? 'Change' : 'Set it up'} →</span>
       </a>
       <a class="setup-card" href="/admin/delivery">
         <span class="sc-ico">${icon.truck}</span>
@@ -437,6 +521,55 @@ adminRoutes.get('/admin/settings', async (c) => {
           </div>
         </section>
       </div>
+
+      <section class="panel spot" style="margin-top:18px">
+        <div class="panel-h"><span class="hico" aria-hidden="true">${icon.spark}</span><h3>Announcement bar</h3></div>
+        <div class="panel-b">
+          <label class="chk" style="margin-bottom:14px">
+            <input type="checkbox" name="announce_on" ${s.announce_on ? 'checked' : ''}>
+            Show a line across the top of every page</label>
+          <div class="field"><label for="an">What it says</label>
+            <input id="an" name="announce_text" value="${esc(s.announce_text)}" maxlength="140"
+                   placeholder="Two 72V builds land Friday"></div>
+          <div class="field"><label for="al">Link it to <span style="color:var(--ghost);font-weight:400">optional</span></label>
+            <input id="al" name="announce_link" value="${esc(s.announce_link)}" maxlength="200"
+                   placeholder="/p/12"></div>
+        </div>
+      </section>
+
+      <section class="panel spot" style="margin-top:18px">
+        <div class="panel-h"><span class="hico" aria-hidden="true">${icon.bolt}</span><h3>The front page</h3></div>
+        <div class="panel-b">
+          <div class="grid2">
+            <div class="field"><label for="h1">Headline, first line</label>
+              <input id="h1" name="hero_line1" value="${esc(s.hero_line1)}" maxlength="60"></div>
+            <div class="field"><label for="h2">Second line <span style="color:var(--ghost);font-weight:400">shown in red</span></label>
+              <input id="h2" name="hero_line2" value="${esc(s.hero_line2)}" maxlength="60"></div>
+          </div>
+          <div class="field"><label for="hb">The paragraph under it</label>
+            <textarea id="hb" name="hero_blurb" maxlength="400">${esc(s.hero_blurb)}</textarea></div>
+          <p class="eyebrow" style="margin:18px 0 10px">The three figures</p>
+          ${[1, 2, 3].map((i) => `
+            <div class="grid2">
+              <div class="field"><label>Label ${i}</label>
+                <input name="hero_stat${i}_k" value="${esc(s['hero_stat' + i + '_k'])}" maxlength="24"></div>
+              <div class="field"><label>Figure ${i}</label>
+                <input name="hero_stat${i}_v" value="${esc(s['hero_stat' + i + '_v'])}" maxlength="16"></div>
+            </div>`).join('')}
+          <p class="eyebrow" style="margin:18px 0 10px">The readout under the bike</p>
+          <div class="field"><label for="hbk">Caption above the photo</label>
+            <input id="hbk" name="hero_bike" value="${esc(s.hero_bike)}" maxlength="80"></div>
+          ${[1, 2, 3, 4].map((i) => `
+            <div class="grid2">
+              <div class="field"><label>Reading ${i}</label>
+                <input name="hero_r${i}" value="${esc(s['hero_r' + i])}" maxlength="10"></div>
+              <div class="field"><label>Unit ${i}</label>
+                <input name="hero_r${i}k" value="${esc(s['hero_r' + i + 'k'])}" maxlength="12"></div>
+            </div>`).join('')}
+          <div class="hint">The first two count up when the page loads. Put your real
+            numbers here — they are the first thing anyone reads about the bike.</div>
+        </div>
+      </section>
 
       <section class="panel spot" style="margin-top:18px">
         <div class="panel-h"><span class="hico" aria-hidden="true">${icon.cog}</span><h3>Shop</h3></div>
@@ -563,9 +696,18 @@ adminRoutes.post('/admin/settings', async (c) => {
                    'bank_account_name', 'bank_sort', 'bank_number',
                    'paypal_address', 'paypal_note', 'collection_note', 'bank_which',
                    'legal_name', 'trading_address', 'contact_phone',
-                   'company_number', 'vat_number', 'site_url', 'returns_note']) take(k);
+                   'company_number', 'vat_number', 'site_url', 'returns_note',
+                   'hero_line1', 'hero_line2', 'hero_blurb', 'hero_bike',
+                   'hero_stat1_k', 'hero_stat1_v', 'hero_stat2_k', 'hero_stat2_v',
+                   'hero_stat3_k', 'hero_stat3_v',
+                   'hero_r1', 'hero_r1k', 'hero_r2', 'hero_r2k',
+                   'hero_r3', 'hero_r3k', 'hero_r4', 'hero_r4k',
+                   'announce_text', 'announce_link']) take(k);
   if (f.hold_hours !== undefined) patch.hold_hours = String(parseInt(f.hold_hours, 10) || 24);
   if (f.returns_days !== undefined) patch.returns_days = String(parseInt(f.returns_days, 10) || 14);
+  /* A checkbox that is off sends nothing, so it can only be read from a form
+     that carried the announcement fields at all. */
+  if (f.announce_text !== undefined) patch.announce_on = f.announce_on != null ? '1' : '';
   await setSettings(patch);
   return c.redirect('/admin/settings?ok=1');
 });
@@ -636,6 +778,12 @@ function productForm(p, err) {
               <input id="wa" name="was" inputmode="decimal"
                 value="${p && p.was_p ? money(p.was_p) : ''}" placeholder="2800.00"></div>
           </div>
+          <div class="field"><label for="cat">Which shelf</label>
+            <select id="cat" name="category">
+              <option value="grafted"${!p || (p.category || 'grafted') === 'grafted' ? ' selected' : ''}>Grafted build</option>
+              <option value="new"${p && p.category === 'new' ? ' selected' : ''}>Brand new</option>
+            </select>
+            <div class="hint">The shop lists these in two separate sections.</div></div>
           <div class="grid2">
             <div class="field"><label for="st">Availability</label>
               <select id="st" name="status">

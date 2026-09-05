@@ -2,10 +2,12 @@ import { Hono } from 'hono';
 import { q, one, many, getSettings } from './db.js';
 import {
   createCustomer, customerByEmail, customerLogin, customerLogout,
-  readCustomerCookie, setCustomerCookie, clearCustomerCookie, requireCustomer,
+  readCustomerCookie, setCustomerCookie, clearCustomerCookie, requireCustomer, readCookie,
   lockedOut, recordFailure, clearFailures,
 } from './auth.js';
 import { layout, esc, money, icon, flash, STATUS_LABEL } from './ui.js';
+import { googleConfig, authUrl, redirectUri, newState, sameState, exchange } from './oauth.js';
+import { customerFromGoogle, beginCustomerSession } from './auth.js';
 
 export const customerRoutes = new Hono();
 const ip = (c) => c.req.header('x-forwarded-for')?.split(',')[0]?.trim() || 'local';
@@ -13,6 +15,51 @@ const MAX_PROOF = 6 * 1024 * 1024;
 
 const box = (inner) =>
   `<main class="shell" style="max-width:520px;padding:56px 22px 100px">${inner}</main>`;
+
+/* ---------------- sign in with Google ---------------- */
+const G_STATE = 'rc_gs';
+
+customerRoutes.get('/auth/google', async (c) => {
+  const cfg = await googleConfig();
+  if (!cfg.ready) return c.redirect('/signin?e=' +
+    encodeURIComponent('Google sign-in is not set up yet.'));
+  const state = newState();
+  /* The state cookie is what proves the callback belongs to a sign-in this
+     browser actually started, rather than a link someone was sent. */
+  c.header('Set-Cookie',
+    `${G_STATE}=${state}; Path=/; HttpOnly; SameSite=Lax; Max-Age=600` +
+    ((c.req.header('x-forwarded-proto') || '').split(',')[0].trim() === 'https' ? '; Secure' : ''));
+  const next = String(c.req.query('next') || '/account');
+  c.header('Set-Cookie',
+    `rc_gn=${encodeURIComponent(next.startsWith('/') ? next : '/account')}; Path=/; HttpOnly; SameSite=Lax; Max-Age=600`,
+    { append: true });
+  return c.redirect(authUrl(cfg, c, state));
+});
+
+customerRoutes.get('/auth/google/callback', async (c) => {
+  const cfg = await googleConfig();
+  const back = (m) => c.redirect('/signin?e=' + encodeURIComponent(m));
+  if (!cfg.ready) return back('Google sign-in is not set up yet.');
+
+  if (c.req.query('error')) return back('Sign-in was cancelled.');
+  const code = String(c.req.query('code') || '');
+  if (!code) return back('Google sent nothing back.');
+  if (!sameState(c.req.query('state'), readCookie(c, G_STATE))) {
+    return back('That sign-in link did not start here. Try again.');
+  }
+
+  let who;
+  try { who = await exchange(cfg, c, code); }
+  catch (e) { return back(String(e.message).slice(0, 160)); }
+
+  const cust = await customerFromGoogle(who);
+  const { token, expires } = await beginCustomerSession(cust);
+  setCustomerCookie(c, token, expires);
+  c.header('Set-Cookie', `${G_STATE}=; Path=/; HttpOnly; Max-Age=0`, { append: true });
+
+  const next = decodeURIComponent(readCookie(c, 'rc_gn') || '/account');
+  return c.redirect(next.startsWith('/') ? next : '/account');
+});
 
 /* ---------------- sign up ---------------- */
 customerRoutes.get('/signup', async (c) => {
@@ -22,7 +69,12 @@ customerRoutes.get('/signup', async (c) => {
     <h1 class="display" style="font-size:clamp(25px,3.3vw,34px)">Track your <span class="lit">orders</span></h1>
     <p class="lede" style="font-size:14.5px">One account, so you can see every order you've placed and where it's got to.</p>
     ${flash('error', c.req.query('e'))}
-    <form method="post" action="/signup" style="margin-top:20px">
+    ${(await googleConfig()).ready ? `
+      <a class="btn ghost wide gbtn" style="margin-top:20px"
+         href="/auth/google?next=${encodeURIComponent(c.req.query('next') || '/account')}">
+        ${icon.google} Continue with Google</a>
+      <div class="orline"><span>or use an email</span></div>` : ''}
+    <form method="post" action="/signup" style="margin-top:4px">
       <input type="hidden" name="next" value="${esc(c.req.query('next') || '/account')}">
       <div class="field"><label for="n">Name</label>
         <input id="n" name="name" required maxlength="80" autocomplete="name"></div>
@@ -74,11 +126,18 @@ customerRoutes.post('/signup', async (c) => {
 /* ---------------- sign in ---------------- */
 customerRoutes.get('/signin', async (c) => {
   const s = await getSettings();
+  const g = await googleConfig();
+  const next = esc(c.req.query('next') || '/account');
   const body = box(`
     <p class="eyebrow" style="margin:0 0 9px">Welcome back</p>
     <h1 class="display" style="font-size:clamp(25px,3.3vw,34px)">Sign <span class="lit">in</span></h1>
     ${flash('error', c.req.query('e'))}
-    <form method="post" action="/signin" style="margin-top:20px">
+    ${g.ready ? `
+      <a class="btn ghost wide gbtn" style="margin-top:20px"
+         href="/auth/google?next=${encodeURIComponent(c.req.query('next') || '/account')}">
+        ${icon.google} Continue with Google</a>
+      <div class="orline"><span>or use an email</span></div>` : ''}
+    <form method="post" action="/signin" style="margin-top:${g.ready ? '4' : '20'}px">
       <input type="hidden" name="next" value="${esc(c.req.query('next') || '/account')}">
       <div class="field"><label for="e">Email</label>
         <input id="e" name="email" type="email" required autocomplete="email"></div>

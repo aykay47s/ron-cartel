@@ -187,6 +187,20 @@ checkoutRoutes.get('/checkout', async (c) => {
       </div>
     </div>
   </aside>
+
+  <!-- On a phone the summary sits at the top, so the button to place the order
+       was a scroll away from the form you just filled in. This bar rides the
+       bottom of the screen instead: total on the left, one button on the right,
+       always in reach. -->
+  <div class="paybar" aria-hidden="false">
+    <div class="pb-sum">
+      <span class="pb-k" id="pbLabel">${priced.depositOnly ? 'Deposit due' : 'Total'}</span>
+      <span class="pb-v"><span aria-hidden="true">£</span><span id="pbTotal">${money(priced.total_p)}</span></span>
+    </div>
+    <button class="btn" form="coform" type="submit"${canOrder ? '' : ' disabled'}>
+      ${icon.lock}<span id="pbTxt">${priced.depositOnly ? 'Pay deposit' : 'Place order'}</span>
+    </button>
+  </div>
 </main>
 
 <script>
@@ -202,6 +216,13 @@ checkoutRoutes.get('/checkout', async (c) => {
     document.getElementById('grand').textContent = (total/100).toFixed(2);
     document.getElementById('totalLabel').textContent = depositOnly ? 'Deposit due' : 'Total';
     document.getElementById('placeTxt').textContent = depositOnly ? 'Pay deposit & reserve' : 'Place order';
+    /* the sticky bar shows the same numbers, so they can never disagree */
+    var pbT = document.getElementById('pbTotal');
+    if (pbT) {
+      pbT.textContent = (total/100).toFixed(2);
+      document.getElementById('pbLabel').textContent = depositOnly ? 'Deposit due' : 'Total';
+      document.getElementById('pbTxt').textContent = depositOnly ? 'Pay deposit' : 'Place order';
+    }
   }
   function group(sel){
     document.querySelectorAll(sel + ' .opt').forEach(function(o){
@@ -432,6 +453,28 @@ checkoutRoutes.get('/order/:ref', async (c) => {
       <span style="margin-left:auto">${statusPill(order)}</span></div>
     <div class="panel-b"><ol class="track">${track}</ol></div>
   </div>
+
+  ${events.filter((e) => e.location || e.detail).length ? `
+  <!-- The running list, InPost style: what happened, where, when. Every line
+       was typed by someone who knew — nothing here is estimated. -->
+  <div class="panel spot" style="margin-bottom:18px">
+    <div class="panel-h"><span class="hico" aria-hidden="true">${icon.pin}</span>
+      <h3>Where it is</h3></div>
+    <div class="panel-b">
+      <ol class="journey">
+        ${events.slice().reverse().map((e, i) => `
+          <li class="${i === 0 ? 'now' : ''}">
+            <span class="j-dot" aria-hidden="true"></span>
+            <div class="j-b">
+              <div class="j-t">${esc(e.label)}</div>
+              ${e.location ? `<div class="j-w">${icon.pin}${esc(e.location)}</div>` : ''}
+              ${e.detail ? `<div class="j-d">${esc(e.detail)}</div>` : ''}
+              <div class="j-m">${when(e.created_at)}</div>
+            </div>
+          </li>`).join('')}
+      </ol>
+    </div>
+  </div>` : ''}
 
   ${dispatched ? `
   <div class="panel spot" style="margin-bottom:18px">

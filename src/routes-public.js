@@ -9,13 +9,12 @@ export const publicRoutes = new Hono();
 publicRoutes.get('/', async (c) => {
   const s = await getSettings();
   const items = await many(
-    `select id, name, blurb, price_p, was_p, status, image_id
+    `select id, name, blurb, price_p, was_p, status, image_id, category
        from products order by position, id desc`
   );
   const live = items.filter((p) => p.status === 'stock').length;
 
-  const cards = items.length
-    ? items.map((p) => {
+  const card = (p) => {
         const gone = p.status !== 'stock';
         const inner = `
           <div class="art"><span class="badge ${esc(p.status)}">${STATUS_LABEL[p.status] || ''}</span>
@@ -29,7 +28,30 @@ publicRoutes.get('/', async (c) => {
         return gone
           ? `<div class="${cls}">${inner}</div>`
           : `<a class="${cls}" href="/p/${p.id}">${inner}</a>`;
-      }).join('')
+  };
+
+  /* Two slots, kept apart. Someone after a brand new bike and someone after a
+     grafted one are shopping for different things, and mixing them makes both
+     harder to find. */
+  const GROUPS = [
+    ['grafted', 'Grafted builds', 'Rebuilt and tested here'],
+    ['new',     'Brand new',      'Straight out of the box, untouched'],
+  ];
+  const sections = GROUPS.map(([key, title, sub]) => {
+    const mine = items.filter((p) => (p.category || 'grafted') === key);
+    if (!mine.length) return '';
+    const inStock = mine.filter((p) => p.status === 'stock').length;
+    return `
+      <div class="grid-head" id="${key}">
+        <div><p class="eyebrow" style="margin:0 0 8px">${esc(sub)}</p>
+          <h2 class="sect">${esc(title)}</h2></div>
+        <p class="lede" style="margin:0 0 2px;font-size:14px">${inStock} of ${mine.length}
+          available</p>
+      </div>
+      <div class="cards">${mine.map(card).join('')}</div>`;
+  }).join('');
+
+  const cards = items.length ? sections
     : `<div class="blank">
         <div class="ico">${icon.bag}</div>
         <h3>Nothing listed yet</h3>
@@ -44,51 +66,57 @@ publicRoutes.get('/', async (c) => {
     <span class="hero-word" aria-hidden="true">CARTEL</span>
     <div class="hero-copy">
       <p class="eyebrow rv" style="margin:0 0 13px">${esc(s.tagline)}</p>
-      <h1 class="display rv">Built to take<br><span class="lit">the abuse.</span></h1>
-      <p class="lede rv">Grafted Light Bee builds, put together and tested here — not pulled off a pallet and shipped on. Next-day UK delivery, or collect in person with a deposit.</p>
+      <!-- Every word of this comes from Settings. The shop owner knows their
+           own pitch better than a line I made up. -->
+      <h1 class="display rv">${esc(s.hero_line1)}<br><span class="lit">${esc(s.hero_line2)}</span></h1>
+      <p class="lede rv">${esc(s.hero_blurb)}</p>
       <div class="hero-cta rv"><a class="btn" href="#shop">${icon.bag} See what's in</a></div>
       <dl class="specs rv">
-        <div class="spec"><dt class="k">UK dispatch</dt><dd class="v">24h</dd></div>
-        <div class="spec"><dt class="k">Peak power</dt><dd class="v">6kW</dd></div>
-        <div class="spec"><dt class="k">Peak torque</dt><dd class="v">250Nm</dd></div>
+        <div class="spec"><dt class="k">${esc(s.hero_stat1_k)}</dt><dd class="v">${esc(s.hero_stat1_v)}</dd></div>
+        <div class="spec"><dt class="k">${esc(s.hero_stat2_k)}</dt><dd class="v">${esc(s.hero_stat2_v)}</dd></div>
+        <div class="spec"><dt class="k">${esc(s.hero_stat3_k)}</dt><dd class="v">${esc(s.hero_stat3_v)}</dd></div>
       </dl>
     </div>
     <div class="stage rv">
-      <span class="lbl eyebrow">Light Bee X · 19" front &amp; rear</span>
+      <span class="lbl eyebrow">${esc(s.hero_bike)}</span>
       ${bikePhoto()}
       <div class="readout">
-        <div><span class="v" id="r-speed">0</span><span class="k">km/h</span></div>
-        <div><span class="v" id="r-power">0.0</span><span class="k">kW</span></div>
-        <div><span class="v">60V</span><span class="k">40Ah</span></div>
-        <div><span class="v">56</span><span class="k">kg</span></div>
+        <div><span class="v" id="r-speed" data-to="${esc(s.hero_r1)}">0</span><span class="k">${esc(s.hero_r1k)}</span></div>
+        <div><span class="v" id="r-power" data-to="${esc(s.hero_r2)}">0</span><span class="k">${esc(s.hero_r2k)}</span></div>
+        <div><span class="v">${esc(s.hero_r3)}</span><span class="k">${esc(s.hero_r3k)}</span></div>
+        <div><span class="v">${esc(s.hero_r4)}</span><span class="k">${esc(s.hero_r4k)}</span></div>
       </div>
     </div>
   </section>
 </main>
 
 <main class="shell" id="shop">
-  <div class="grid-head">
-    <div><p class="eyebrow rv" style="margin:0 0 8px">Current stock</p>
-      <h2 class="sect rv">What's available</h2></div>
-    ${items.length ? `<p class="lede rv" style="margin:0 0 2px;font-size:14px">${live} of ${items.length} ${items.length === 1 ? 'listing' : 'listings'} available right now.</p>` : ''}
-  </div>
-  <div class="cards">${cards}</div>
+  <!-- Each shelf brings its own heading and its own grid. Wrapping them in one
+       .cards grid turned the headings into grid cells sitting beside the bikes. -->
+  ${cards}
 </main>
 
 
 <script>
 (function(){
-  var sp = document.getElementById('r-speed'), pw = document.getElementById('r-power');
-  if (!sp) return;
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    sp.textContent = '75'; pw.textContent = '6.0'; return;
-  }
-  var t = 0;
-  setInterval(function(){
-    t += 0.06;
-    sp.textContent = Math.max(0, Math.round(52 + Math.sin(t)*20 + Math.sin(t*2.3)*3));
-    pw.textContent = (2.4 + Math.abs(Math.sin(t*1.4))*3.4).toFixed(1);
-  }, 90);
+  /* Count up to the real figure once and stop. The old version oscillated
+     forever like a live speedo, which looked busy and meant nothing. */
+  var els = [document.getElementById('r-speed'), document.getElementById('r-power')];
+  var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  els.forEach(function (el) {
+    if (!el) return;
+    var target = parseFloat(el.dataset.to || '0');
+    var dp = (el.dataset.to || '').indexOf('.') > -1 ? 1 : 0;
+    if (reduced || !target) { el.textContent = el.dataset.to || '0'; return; }
+    var start = null, ms = 900;
+    requestAnimationFrame(function step(now) {
+      if (start === null) start = now;
+      var k = Math.min(1, (now - start) / ms);
+      var eased = 1 - Math.pow(1 - k, 3);
+      el.textContent = (target * eased).toFixed(dp);
+      if (k < 1) requestAnimationFrame(step); else el.textContent = el.dataset.to;
+    });
+  });
 })();
 </script>`;
 

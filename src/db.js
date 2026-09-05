@@ -168,6 +168,13 @@ const MIGRATIONS = [
      primary key (product_id, visitor)
    )`,
   `create index if not exists product_views_seen on product_views (seen_at)`,
+
+  /* Two kinds of bike, kept apart on the shop page: builds we have grafted,
+     and brand new ones out of the box. */
+  `alter table products add column if not exists category text not null default 'grafted'`,
+
+  /* Order updates carry a place now, so "where is it" has an answer. */
+  `alter table order_events add column if not exists location text not null default ''`,
   /* Shops seeded before couriers existed showed "No courier" against a row
      that plainly said Royal Mail. Name them once; anything already set is
      left alone. */
@@ -217,6 +224,29 @@ const DEFAULT_SETTINGS = {
   /* Crezco — open banking with no monthly fee and no per-payment fee on UK
      domestic transfers, which is the shape this shop needs. Kept separate
      from the TrueLayer keys so either can be used. */
+  /* the hero, editable — the shop owner knows their own pitch */
+  hero_line1: 'The cheapest grafted',
+  hero_line2: 'Sur-Rons in the UK.',
+  hero_blurb: 'Built and tested here, not pulled off a pallet and shipped on. '
+            + 'Next-day UK delivery, or collect in person with a deposit.',
+  hero_stat1_k: 'Top speed',  hero_stat1_v: '56mph',
+  hero_stat2_k: 'Peak power', hero_stat2_v: '12.5kW',
+  hero_stat3_k: 'Wheel torque', hero_stat3_v: '440Nm',
+  hero_bike: 'Ultra Bee · 19\" front, 18\" rear',
+  hero_r1: '56',  hero_r1k: 'mph',
+  hero_r2: '12.5', hero_r2k: 'kW peak',
+  hero_r3: '74V',  hero_r3k: '55Ah',
+  hero_r4: '85',   hero_r4k: 'kg',
+
+  /* a bar across the top of every page, for a drop or a delay */
+  announce_on: '',
+  announce_text: '',
+  announce_link: '',
+
+  /* sign in with Google */
+  google_client_id: '',
+  google_client_secret: '',
+
   bank_which: '',
   crezco_on: '',
   crezco_link: '',

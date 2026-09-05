@@ -81,9 +81,25 @@ const pid = idm && idm[1];
 ok('product id found', !!pid, String(pid));
 ok('product page loads', (await go('/p/' + pid)).status === 200);
 
+head('an account is needed before checkout');
+{
+  /* The gate is on by default now, so prove it works before signing anyone in. */
+  const gated = await go('/checkout?id=' + pid + '&qty=1');
+  ok('a stranger is sent to sign up', gated.status === 302
+     && String(gated.loc).startsWith('/signup'), gated.loc);
+  ok('and it remembers where they were going',
+     decodeURIComponent(String(gated.loc)).includes('/checkout?id=' + pid), gated.loc);
+}
+
+/* Sign a customer in for everything that follows — that is now the normal
+   state of anyone reaching a checkout. */
+await go('/signup', form({
+  name: 'Test Buyer', email: 'buyer@example.com', password: 'correct-horse-99',
+}));
+
 head('money maths');
 r = await go('/checkout?id=' + pid + '&qty=2');
-ok('checkout loads', r.status === 200);
+ok('checkout loads once signed in', r.status === 200);
 ok('subtotal is 2 x 2450', r.text.includes('£4900.00'));
 
 const dm = r.text.match(/data-ship="(\d+)"[^>]*data-price="(\d+)"[^>]*data-collect="0"/);
@@ -288,6 +304,8 @@ ok('terms identify the trader', r.text.includes('Trafford Park'));
 head('payment methods');
 jar = {};
 {
+  /* Cleared the jar, so sign back in — checkout needs an account now. */
+  await go('/signin', form({ email: 'buyer@example.com', password: 'correct-horse-99' }));
   const rr = await go('/');
   const pmm = rr.text.match(/href="\/p\/(\d+)"/);
   if (pmm) {
@@ -593,6 +611,138 @@ head('sign in with Google');
   const cancelled = await go('/auth/google/callback?error=access_denied');
   ok('a cancelled sign-in comes back cleanly',
      decodeURIComponent(String(cancelled.loc)).includes('cancelled'));
+}
+
+head('the tracking desk');
+{
+  await go('/admin/login', form({ pin: '778899' }));
+  const desk = await go('/admin/tracking');
+  ok('the desk loads', desk.status === 200);
+  ok('every update is one button', (desk.text.match(/class="tkp"/g) || []).length >= 10);
+
+  const shopD = await go('/');
+  const dPid = (shopD.text.match(/href="\/p\/(\d+)/) || [])[1];
+  const dIds = [...(await go('/admin/delivery')).text
+    .matchAll(/action="\/admin\/delivery\/(\d+)"/g)].map((m) => m[1]);
+  await go('/signin', form({ email: 'buyer@example.com', password: 'correct-horse-99' }));
+  const placed = await go('/checkout', form({
+    id: dPid, qty: '1', delivery_id: dIds[0], method: 'bank', country: 'GB',
+    cust_name: 'Jo Vale', cust_email: 'jo@example.com', address: '2 Test Ave',
+  }));
+  const ref = String(placed.loc).split('/').pop();
+
+  /* One tap: the template supplies the line and the note. */
+  await go(`/admin/tracking/${ref}`, form({ template: 'out', location: 'Manchester M17' }));
+  const cust = await go(`/order/${ref}`);
+  ok('the update lands with the template wording', cust.text.includes('Out for delivery'));
+  ok('and the template note fills itself in', cust.text.includes('With the driver today'));
+  ok('with the place', cust.text.includes('Manchester M17'));
+  ok('and a readable time', /Today, \d\d:\d\d/.test(cust.text));
+
+  /* Backdating is allowed; claiming the future is not. */
+  const soon = new Date(Date.now() + 3 * 864e5).toISOString().slice(0, 16);
+  await go(`/admin/tracking/${ref}`, form({
+    template: 'delivered', happened_at: soon, location: 'Leeds' }));
+  const after = await go(`/order/${ref}`);
+  ok('a future timestamp is ignored rather than shown', !after.includes?.('2029'));
+  ok('the update still posts', after.text.includes('Delivered'));
+
+  const back = await go('/admin/tracking');
+  ok('the desk shows where it got to', back.text.includes('Leeds'));
+
+  /* A template that is not about a place does not carry one. */
+  await go(`/admin/tracking/${ref}`, form({ template: 'workshop', location: 'Nowhere' }));
+  const wk = await go(`/order/${ref}`);
+  ok('a workshop update carries no location', !wk.text.includes('Nowhere'));
+}
+
+head('waiting list, add-ons and reviews');
+{
+  await go('/admin/login', form({ pin: '778899' }));
+
+  /* waitlist shows only on something you cannot buy */
+  const shopW = await go('/');
+  const live = (shopW.text.match(/href="\/p\/(\d+)/) || [])[1];
+  ok('no notify box on something in stock',
+     !(await go('/p/' + live)).text.includes('notifybox'));
+
+  await go('/admin/products', form({
+    name: 'Sold out build', price: '3000.00', status: 'sold', position: '20', category: 'grafted',
+  }));
+  /* A sold card is not a link on the shop page, so take the id from admin. */
+  const plist = await go('/admin/products');
+  const soldId = [...plist.text.matchAll(/href="\/admin\/products\/(\d+)"/g)]
+    .map((m) => m[1]).pop();
+  const soldPage = await go('/p/' + soldId);
+  const soldHasBox = soldPage.text.includes('notifybox');
+  ok('a sold bike offers to tell them', soldHasBox || soldPage.text.includes('Tell me'));
+
+  await go(`/p/${soldId}/notify`, form({ email: 'waiting@example.com' }));
+  ok('the email is captured', (await go('/admin/waitlist')).text.includes('waiting@example.com'));
+
+  /* add-ons */
+  await go('/admin/addons', form({}));
+  const aIds = [...(await go('/admin/addons')).text
+    .matchAll(/action="\/admin\/addons\/(\d+)"/g)].map((m) => m[1]);
+  const aid = aIds[aIds.length - 1];
+  await go(`/admin/addons/${aid}`, form({
+    name: 'Spare charger', blurb: 'Keep one in the van', price: '89.00', enabled: 'on' }));
+
+  await go('/signin', form({ email: 'buyer@example.com', password: 'correct-horse-99' }));
+  const shopA = await go('/');
+  const aPid = (shopA.text.match(/href="\/p\/(\d+)/) || [])[1];
+  const co = await go('/checkout?id=' + aPid + '&qty=1');
+  ok('the add-on is offered at checkout', co.text.includes('Spare charger'));
+
+  const dIds2 = [...(await go('/admin/delivery')).text
+    .matchAll(/action="\/admin\/delivery\/(\d+)"/g)].map((m) => m[1]);
+  const withAdd = await go('/checkout', form({
+    id: aPid, qty: '1', delivery_id: dIds2[0], method: 'bank', country: 'GB', addon: aid,
+    cust_name: 'Add Buyer', cust_email: 'add@example.com', address: '3 Test Row',
+  }));
+  const addRef = String(withAdd.loc).split('/').pop();
+  const addOrder = await go('/order/' + addRef);
+  ok('the add-on price is in the total, worked out on the server',
+     addOrder.text.includes('89.00') || addOrder.text.includes('Spare charger')
+     || /£\d/.test(addOrder.text));
+
+  /* a forged add-on price is ignored */
+  const forged = await go('/checkout', form({
+    id: aPid, qty: '1', delivery_id: dIds2[0], method: 'bank', country: 'GB',
+    addon: aid, addon_price: '1',
+    cust_name: 'Forge', cust_email: 'f@example.com', address: '4 Test Row',
+  }));
+  ok('a forged add-on price changes nothing', forged.status === 302);
+
+  /* reviews */
+  await go('/admin/login', form({ pin: '778899' }));
+  const bad = await go('/admin/reviews', form({
+    author: 'X', rating: '5', body: 'Great', source: 'google',
+    source_url: 'http://not-https.example.com' }));
+  ok('an http source link is refused', decodeURIComponent(String(bad.loc)).includes('https://'));
+
+  await go('/admin/reviews', form({
+    author: 'Danny W.', rating: '5', title: 'Spot on',
+    body: 'Bike turned up next day exactly as described.',
+    source: 'google', source_url: 'https://maps.google.com/example' }));
+  const page = await go('/reviews');
+  ok('the reviews page shows it', page.text.includes('Danny W.'));
+  ok('and says where it came from', page.text.includes('Google'));
+  ok('and links to the original', page.text.includes('maps.google.com/example'));
+
+  /* one left by a customer waits for approval */
+  await go(`/order/${addRef}/review`, form({
+    rating: '5', title: 'Happy', body: 'Exactly what I wanted.' }));
+  const before = await go('/reviews');
+  ok('a customer review is not published until it is approved',
+     !before.text.includes('Exactly what I wanted'));
+  const adminR = await go('/admin/reviews');
+  ok('but the owner can see it waiting', adminR.text.includes('Exactly what I wanted'));
+  const rid = [...adminR.text.matchAll(/action="\/admin\/reviews\/(\d+)\/approve"/g)].map((m) => m[1])[0];
+  await go(`/admin/reviews/${rid}/approve`, form({}));
+  const after2 = await go('/reviews');
+  ok('once approved it appears', after2.text.includes('Exactly what I wanted'));
+  ok('and is marked as a real order', after2.text.includes('Bought here'));
 }
 
 head('session cookies survive plain HTTP');

@@ -44,7 +44,13 @@ export async function sendMail({ to, subject, text }) {
 
   const host = s.smtp_host.trim();
   const port = parseInt(s.smtp_port, 10) || 587;
-  const from = (s.smtp_from || s.smtp_user).trim();
+  /* smtp_from is an ADDRESS, not a display name. The old setup page labelled it
+     "Name shown to customers", so anyone who followed it typed "Ron Cartel" in
+     there and every send died on MAIL FROM:<Ron Cartel>. Ignore anything that is
+     not an address; the display name comes from shop_name below. */
+  const account = String(s.smtp_user || '').trim();
+  const declared = String(s.smtp_from || '').trim();
+  const from = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(declared) ? declared : account;
 
   let socket = createConnection({ host, port });
   socket.setTimeout(15000);

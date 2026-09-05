@@ -786,6 +786,7 @@ function adminShell(active, inner) {
       ${tab('/admin/tracking', 'tracking', 'Tracking', icon.pin)}
       ${tab('/admin/products', 'products', 'Products', icon.box)}
       ${tab('/admin/delivery', 'delivery', 'Delivery', icon.truck)}
+      ${tab('/admin/setup/email', 'email', 'Email', icon.mail)}
       ${tab('/admin/settings', 'settings', 'Settings', icon.cog)}
     </div>
     ${inner}

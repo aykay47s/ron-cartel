@@ -104,6 +104,7 @@ trackingRoutes.get('/admin/tracking', async (c) => {
       <a href="/admin/tracking" class="on">${icon.pin} Tracking</a>
       <a href="/admin/products">${icon.box} Products</a>
       <a href="/admin/delivery">${icon.truck} Delivery</a>
+      <a href="/admin/setup/email">${icon.mail} Email</a>
       <a href="/admin/settings">${icon.cog} Settings</a>
     </div>
     ${flash('info', c.req.query('ok') ? 'Posted.' : '')}

@@ -32,6 +32,7 @@ const wrap = (title, active, inner) => `<main class="shell adm">
     <a href="/admin/tracking">${icon.pin} Tracking</a>
     <a href="/admin/products">${icon.box} Products</a>
     <a href="/admin/delivery"${active === 'delivery' ? ' class="on"' : ''}>${icon.truck} Delivery</a>
+    <a href="/admin/setup/email"${active === 'email' ? ' class="on"' : ''}>${icon.mail} Email</a>
     <a href="/admin/settings"${active === 'settings' ? ' class="on"' : ''}>${icon.cog} Settings</a>
   </div>
   ${inner}</main>`;
@@ -138,80 +139,221 @@ setupRoutes.post('/admin/setup/bank/live', async (c) => {
 
 /* ------------------------------------------------------------------ *
  *  EMAIL
+ *
+ *  The constraint, written down so nobody re-argues it in six months:
+ *  since 1 Feb 2024 Gmail and Yahoo — and Microsoft from May 2025 —
+ *  reject mail that is not DKIM-signed by the domain it claims to come
+ *  from. So every relay (Brevo, Mailjet, Resend, SMTP2GO) makes you
+ *  authenticate a domain you own, and none of them will authenticate a
+ *  @gmail.com address. Ron Cartel has no domain yet.
+ *
+ *  The one free route left that actually lands in an inbox is sending
+ *  THROUGH Google with an app password. Google signs it itself, so SPF
+ *  and DKIM both line up. 500 a day, free, no card, no domain.
+ *  When the domain lands, a relay becomes worth it and this page gets a
+ *  fourth card. Not before.
  * ------------------------------------------------------------------ */
 const PROVIDERS = {
-  gmail:   { name: 'Gmail / Google Workspace', host: 'smtp.gmail.com',        port: '587',
-             help: 'https://myaccount.google.com/apppasswords',
-             note: 'Google will not accept your normal password. Turn on 2-step verification, then generate a 16-character App Password and paste that below.' },
-  outlook: { name: 'Outlook / Microsoft 365',  host: 'smtp-mail.outlook.com', port: '587',
-             help: 'https://account.microsoft.com/security',
-             note: 'Microsoft needs an app password too if you have two-factor turned on.' },
-  zoho:    { name: 'Zoho Mail',                host: 'smtp.zoho.eu',          port: '587',
-             help: 'https://accounts.zoho.eu/home#security/app_password',
-             note: 'Generate an app-specific password in Zoho security settings.' },
-  icloud:  { name: 'iCloud Mail',              host: 'smtp.mail.me.com',      port: '587',
-             help: 'https://account.apple.com/account/manage',
-             note: 'Apple requires an app-specific password.' },
-  custom:  { name: 'Something else',           host: '', port: '587', help: '',
-             note: 'Your host will have given you a server name and port.' },
+  gmail: {
+    name: 'Gmail', tag: 'Free — start here',
+    host: 'smtp.gmail.com', port: '587',
+    cap: '500 emails a day. Free forever, no card, and it works without a domain.',
+    lock: true,
+    walk: [
+      { t: 'Turn on 2-step verification',
+        d: 'Google will not give out an app password until this is on. One minute, once, and it protects the account the shop runs on.',
+        href: 'https://myaccount.google.com/signinoptions/twosv', btn: 'Open 2-step verification' },
+      { t: 'Create the app password',
+        d: 'Name it <b>Ron Cartel</b> and press Create. Google shows sixteen letters in four groups. That is what goes in the box below — not the password you sign in with. Copy it before closing the window; it is never shown again.',
+        href: 'https://myaccount.google.com/apppasswords', btn: 'Open app passwords' },
+    ],
+  },
+  icloud: {
+    name: 'iCloud Mail', tag: 'Free',
+    host: 'smtp.mail.me.com', port: '587',
+    cap: 'Works the same way. You need an app-specific password from your Apple account.',
+    lock: true,
+    walk: [
+      { t: 'Get an app-specific password',
+        d: 'Sign in, open <b>Sign-In and Security</b>, then <b>App-Specific Passwords</b>. Apple gives you a code with dashes in it — keep the dashes.',
+        href: 'https://account.apple.com/account/manage', btn: 'Open Apple account' },
+    ],
+  },
+  domain: {
+    name: 'A mailbox on my own domain', tag: 'Best, once you have one',
+    host: '', port: '587',
+    cap: 'orders@roncartel.co.uk sending as itself. Best deliverability and it looks like a real shop.',
+    lock: false,
+    walk: [
+      { t: 'Get the server name from whoever hosts the mailbox',
+        d: 'They will give you an SMTP server, a port (587 almost always) and the mailbox password. Fill those in below.',
+        href: '', btn: '' },
+    ],
+  },
+  custom: {
+    name: 'Something else', tag: '',
+    host: '', port: '587',
+    cap: 'Any server that speaks SMTP on port 587.',
+    lock: false,
+    walk: [
+      { t: 'Enter the details your provider gave you',
+        d: 'Server name, port, the address, and its password.',
+        href: '', btn: '' },
+    ],
+  },
 };
+
+/* Google prints app passwords as four groups of four for readability. The
+   spaces are not part of it, and pasting them is the single most common
+   reason a first test fails. Take them out — but only when the result is
+   exactly sixteen letters, so a real password with a space survives. */
+function tidyAppPassword(v) {
+  const raw = String(v || '');
+  const tight = raw.replace(/\s+/g, '');
+  if (/\s/.test(raw) && /^[A-Za-z]{16}$/.test(tight)) return tight;
+  return raw.trim();
+}
+
+/* SMTP tells you what went wrong in a code. Nobody should have to look
+   one up to find out they pasted the wrong password. */
+function plainly(msg, host) {
+  const m = String(msg || '');
+  const google = host === 'smtp.gmail.com';
+  if (/534|application-specific password/i.test(m)) {
+    return 'Google wants an app password here, not the password you sign in with. Step 2 above has the link.';
+  }
+  if (/535|5\.7\.8|Username and Password not accepted|authentication fail/i.test(m)) {
+    return google
+      ? 'Google turned that password down. Three things it is almost always: 2-step verification is not on yet, the code was typed instead of pasted, or that is your sign-in password rather than the sixteen-letter app password.'
+      : 'The server would not accept that address and password together.';
+  }
+  if (/ENOTFOUND|EAI_AGAIN|getaddrinfo/i.test(m)) {
+    return 'There is no server by that name — check the SMTP server line for a typo.';
+  }
+  if (/ECONNREFUSED/i.test(m)) return 'The server refused the connection on that port. Try 587.';
+  if (/timed out|ETIMEDOUT/i.test(m)) {
+    return 'The server never answered. Either the port is wrong or outgoing mail is blocked.';
+  }
+  if (/certificate|self.signed|altname|CERT_/i.test(m)) {
+    return 'The server’s security certificate did not match its name, so the connection was dropped.';
+  }
+  if (/55[0-3]|relay|not permitted|not allowed/i.test(m)) {
+    return 'It accepted the sign-in but refused to send from that address. The send-from address has to be the account you signed in with.';
+  }
+  return m.slice(0, 170);
+}
 
 setupRoutes.get('/admin/setup/email', async (c) => {
   const s = await getSettings();
   const pick = c.req.query('p') || (s.smtp_host
-    ? (Object.entries(PROVIDERS).find(([, v]) => v.host === s.smtp_host)?.[0] || 'custom')
+    ? (Object.entries(PROVIDERS).find(([, v]) => v.host && v.host === s.smtp_host)?.[0] || 'domain')
     : '');
   const p = PROVIDERS[pick];
   const configured = !!(s.smtp_host && s.smtp_user && s.smtp_pass);
   const sent = c.req.query('sent');
 
-  const body = wrap('Send email from your own address', 'email', `
+  const walk = p ? p.walk.map((w, i) => `
+    <div class="walk">
+      <div class="walk-n">${i + 1}</div>
+      <div class="walk-b">
+        <h4>${w.t}</h4>
+        <p>${w.d}</p>
+        ${w.href ? `<a class="btn ghost sm" href="${w.href}" target="_blank" rel="noopener noreferrer">
+          ${icon.globe} ${esc(w.btn)}</a>` : ''}
+      </div>
+    </div>`).join('') : '';
+
+  const body = wrap('Sending email', 'email', `
     ${flash('error', c.req.query('e'))}
-    ${sent ? flash('info', 'Test email sent. Check the inbox — and the spam folder.') : ''}
-    <p class="lede" style="max-width:60ch;margin-bottom:26px">
-      Order confirmations, payment receipts and dispatch notices go out from your
-      address, not from a no-reply nobody trusts. Any email account you already have
-      will do — you do not need a new service.</p>
+    ${sent ? `<div class="won">
+        <div class="won-i">${icon.tick}</div>
+        <div><h3>That went out.</h3>
+        <p>Check the inbox — and the spam folder the first time, because the first
+        message from any new sender often lands there. Once you mark it as not spam,
+        the rest go straight in. Your shop is now sending order confirmations,
+        payment receipts and delivery updates on its own.</p></div>
+      </div>` : ''}
 
-    ${step(1, 'Which email do you already use?', `
-      <div class="pickrow">
+    <p class="lede" style="max-width:62ch;margin-bottom:8px">
+      Every order confirmation, payment receipt and “your bike is in Lutterworth”
+      update goes out from your address. It costs nothing. It takes about four
+      minutes, and two of those are Google making you prove it is you.</p>
+    <p class="micro" style="max-width:62ch;margin:0 0 26px">
+      Nothing you type here leaves your own server, and the password is never in the code.</p>
+
+    ${step(1, 'Which email do you want it sent from?', `
+      <div class="mailpick">
         ${Object.entries(PROVIDERS).map(([k, v]) => `
-          <a class="pick${pick === k ? ' on' : ''}" href="/admin/setup/email?p=${k}">
-            ${icon.mail}<span>${esc(v.name)}</span></a>`).join('')}
-      </div>`, pick ? 'done' : '')}
+          <a class="mp${pick === k ? ' on' : ''}" href="/admin/setup/email?p=${k}">
+            <span class="mp-h">${icon.mail}<b>${esc(v.name)}</b>
+              ${v.tag ? `<i>${esc(v.tag)}</i>` : ''}</span>
+            <span class="mp-c">${esc(v.cap)}</span>
+          </a>`).join('')}
+      </div>
+      <details class="whynot">
+        <summary>Why not Outlook, or one of the free sending services?</summary>
+        <p><b>Outlook and Hotmail</b> — Microsoft switched personal accounts off app
+        passwords on 16 September 2024. The server name still looks right and the
+        sign-in still fails. Do not spend an evening on it.</p>
+        <p><b>Brevo, Mailjet, Resend, SMTP2GO</b> — all genuinely free at the sizes
+        you need, and all of them make you prove you own a domain first, because
+        since February 2024 Gmail and Yahoo bin mail that is not signed by the domain
+        it claims to come from. None of them will sign a @gmail.com address for you.
+        The day roncartel.co.uk exists, one of these becomes the right answer and
+        this page gets another card. Until then, Gmail is not a compromise — it is
+        the option that actually reaches people.</p>
+      </details>`, pick ? 'done' : '')}
 
-    ${pick ? step(2, 'Sign in to it', `
-      <p>${p.note}</p>
-      ${p.help ? `<a class="btn ghost sm" href="${p.help}" target="_blank" rel="noopener noreferrer">
-        ${icon.globe} Get an app password</a>` : ''}
-      <form method="post" action="/admin/setup/email" style="margin-top:16px">
+    ${pick ? step(2, 'Set it up', `
+      ${walk}
+      <form method="post" action="/admin/setup/email" style="margin-top:20px">
         <input type="hidden" name="p" value="${esc(pick)}">
-        ${pick === 'custom' ? `
-        <div class="grid2">
-          <div class="field"><label for="sh">SMTP server</label>
-            <input id="sh" name="smtp_host" value="${esc(s.smtp_host)}" placeholder="mail.yourhost.com"></div>
-          <div class="field"><label for="sp">Port</label>
-            <input id="sp" name="smtp_port" value="${esc(s.smtp_port)}" inputmode="numeric"></div>
-        </div>` : `<input type="hidden" name="smtp_host" value="${esc(p.host)}">
-                   <input type="hidden" name="smtp_port" value="${esc(p.port)}">`}
-        <div class="field"><label for="su">Your email address</label>
+        ${p.lock
+          ? `<input type="hidden" name="smtp_host" value="${esc(p.host)}">
+             <input type="hidden" name="smtp_port" value="${esc(p.port)}">
+             <p class="micro" style="margin:0 0 14px">Server and port are filled in for you
+             (${esc(p.host)}, port ${esc(p.port)}).</p>`
+          : `<div class="grid2">
+              <div class="field"><label for="sh">SMTP server</label>
+                <input id="sh" name="smtp_host" value="${esc(s.smtp_host)}" placeholder="mail.yourhost.com"></div>
+              <div class="field"><label for="sp">Port</label>
+                <input id="sp" name="smtp_port" value="${esc(s.smtp_port || '587')}" inputmode="numeric"></div>
+            </div>`}
+        <div class="field"><label for="su">The email address</label>
           <input id="su" name="smtp_user" type="email" value="${esc(s.smtp_user)}"
-                 autocomplete="username" placeholder="orders@roncartel.co.uk"></div>
-        <div class="field"><label for="spw">App password</label>
+                 autocomplete="username" placeholder="${pick === 'gmail' ? 'you@gmail.com' : 'orders@roncartel.co.uk'}"></div>
+        <div class="field"><label for="spw">${p.lock ? 'App password' : 'Password'}</label>
           <input id="spw" name="smtp_pass" type="password" value="${esc(s.smtp_pass)}"
-                 autocomplete="off">
-          <div class="hint">Stored on your own server, never in the code.</div></div>
-        <div class="field"><label for="sf">Name shown to customers</label>
-          <input id="sf" name="smtp_from" value="${esc(s.smtp_from)}" placeholder="Ron Cartel"></div>
+                 autocomplete="off" placeholder="${pick === 'gmail' ? 'the sixteen letters' : ''}">
+          <div class="hint">${pick === 'gmail'
+            ? 'Paste it with or without the spaces — either is fine.'
+            : 'Kept on your own server.'}</div></div>
+        ${p.lock ? '' : `
+        <div class="field"><label for="sf">Send from <span class="opt">optional</span></label>
+          <input id="sf" name="smtp_from" type="email" value="${esc(s.smtp_from)}"
+                 placeholder="orders@roncartel.co.uk">
+          <div class="hint">Leave this empty unless the mailbox sends as a different
+            address. The name customers see is your shop name, set in Settings.</div></div>`}
         <button class="btn" type="submit">${icon.tick} Save</button>
       </form>`, configured ? 'done' : '') : ''}
 
     ${configured ? step(3, 'Prove it works', `
+      <p>Send one to yourself. If it arrives, you are done — there is nothing else
+      to switch on.</p>
       <form method="post" action="/admin/setup/email/test">
-        <div class="field" style="max-width:360px"><label for="to">Send a test to</label>
+        <div class="field" style="max-width:380px"><label for="to">Send a test to</label>
           <input id="to" name="to" type="email" required value="${esc(s.smtp_user)}"></div>
         <button class="btn" type="submit">${icon.mail} Send test email</button>
-      </form>`, sent ? 'done' : '') : ''}
+      </form>
+      <div class="uses">
+        <p class="micro" style="margin:0 0 8px">Once this works, the shop sends:</p>
+        <ul>
+          <li>the order confirmation, with the reference and what to pay</li>
+          <li>a receipt when you mark a payment received</li>
+          <li>every tracking update you post, with where the bike is</li>
+          <li>a note to everyone on the waiting list when a bike comes back in</li>
+        </ul>
+      </div>`, sent ? 'done' : '') : ''}
   `);
   return c.html(layout({ title: 'Email — Setup', body, active: 'admin', admin: c.get('admin'), settings: s }));
 });
@@ -219,9 +361,10 @@ setupRoutes.get('/admin/setup/email', async (c) => {
 setupRoutes.post('/admin/setup/email', async (c) => {
   const f = await c.req.parseBody();
   const patch = {};
-  for (const k of ['smtp_host', 'smtp_port', 'smtp_user', 'smtp_pass', 'smtp_from']) {
+  for (const k of ['smtp_host', 'smtp_port', 'smtp_user', 'smtp_from']) {
     if (f[k] !== undefined) patch[k] = String(f[k]).trim();
   }
+  if (f.smtp_pass !== undefined) patch.smtp_pass = tidyAppPassword(f.smtp_pass);
   /* Filling this in IS turning email on. A separate "enable emails" tick box
      somewhere else is exactly the sort of thing that makes people think the
      setup did not work. */
@@ -234,18 +377,19 @@ setupRoutes.post('/admin/setup/email/test', async (c) => {
   const f = await c.req.parseBody();
   const s = await getSettings();
   const to = String(f.to || '').trim();
+  const shop = s.shop_name || 'your shop';
   try {
     const r = await sendMail({
       to,
-      subject: `Test from ${s.shop_name || 'your shop'}`,
-      text: `This is a test.\n\nIf you are reading it, ${s.shop_name || 'your shop'} can send email, `
-          + `and your customers will get their order confirmations.\n`,
+      subject: `Test from ${shop}`,
+      text: `This is a test.\n\nIf you are reading it, ${shop} can send email, and your `
+          + `customers will get their order confirmations and delivery updates.\n\n`
+          + `If it landed in spam, mark it as not spam once and the rest will go to the inbox.\n`,
     });
     if (r && r.sent === false) throw new Error(r.reason || 'email is not configured yet');
     return c.redirect('/admin/setup/email?sent=1');
   } catch (e) {
-    return c.redirect('/admin/setup/email?e=' + encodeURIComponent(
-      'Could not send: ' + String(e.message).slice(0, 180)));
+    return c.redirect('/admin/setup/email?e=' + encodeURIComponent(plainly(e.message, s.smtp_host)));
   }
 });
 

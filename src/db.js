@@ -343,6 +343,15 @@ export async function migrate() {
       );
     }
   }
+  /* One-off repair. The email setup page used to label smtp_from "Name shown
+     to customers", so installs following it stored "Ron Cartel" in a field the
+     SMTP client puts inside MAIL FROM:<>. Every send failed. Blank anything
+     that is not an address; sending then falls back to the account itself. */
+  await q(
+    `update settings set value = '' where key = 'smtp_from'
+       and value <> '' and value !~ '^[^[:space:]@]+@[^[:space:]@]+\\.[^[:space:]@]+$'`
+  );
+
   console.log('[db] migrations applied');
 }
 
